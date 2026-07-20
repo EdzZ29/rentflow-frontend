@@ -32,6 +32,7 @@ export default function OwnerProducts() {
   const { businessId } = useParams();
   const bid = Number(businessId);
   const [products, setProducts] = useState(null);
+  const [business, setBusiness] = useState(null);
   const [error, setError] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [file, setFile] = useState(null);
@@ -46,8 +47,20 @@ export default function OwnerProducts() {
 
   useEffect(() => {
     load();
+    api.businesses.get(bid).then(setBusiness).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bid]);
+
+  const isMarketplace = business?.subscriptionType === 'marketplace';
+
+  const togglePublish = async (p) => {
+    try {
+      await api.products.update(p.id, { isPublished: !p.isPublished });
+      await load();
+    } catch (e) {
+      setError(e.message);
+    }
+  };
 
   const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
@@ -107,6 +120,17 @@ export default function OwnerProducts() {
 
       <ErrorNote>{error}</ErrorNote>
 
+      {business && !isMarketplace && (
+        <div className="mb-4 rounded-lg border border-brand/20 bg-brand/5 px-4 py-3 text-sm text-slate-600">
+          This business is on the <strong>Business Management</strong> plan, so its products stay
+          private. Enable the{' '}
+          <Link to="/owner/subscription" className="font-semibold text-accent hover:underline">
+            Marketplace plan
+          </Link>{' '}
+          to publish them to customers.
+        </div>
+      )}
+
       <div className="mt-4 grid gap-6 lg:grid-cols-3">
         {/* Add product */}
         <Card title="Add a product" className="lg:col-span-1">
@@ -156,17 +180,36 @@ export default function OwnerProducts() {
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-semibold text-slate-900">{p.name}</h3>
-                  <Badge tone={p.availability === 'available' ? 'green' : 'slate'}>{p.availability}</Badge>
+                  <div className="flex items-center gap-1.5">
+                    {isMarketplace && (
+                      <Badge tone={p.isPublished ? 'green' : 'slate'}>
+                        {p.isPublished ? 'Published' : 'Draft'}
+                      </Badge>
+                    )}
+                    <Badge tone={p.availability === 'available' ? 'green' : 'slate'}>{p.availability}</Badge>
+                  </div>
                 </div>
                 <p className="text-sm font-medium text-brand">{formatPrice(p.pricePerDay, p.currency)}/day</p>
                 {p.description && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{p.description}</p>}
-                <div className="mt-2 flex gap-2">
+                <div className="mt-2 flex flex-wrap gap-2">
                   <button onClick={() => setEditing(p)} className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">Edit</button>
                   <button onClick={() => toggleAvail(p)} className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">
                     {p.availability === 'available' ? 'Mark unavailable' : 'Mark available'}
                   </button>
+                  {isMarketplace && (
+                    <button
+                      onClick={() => togglePublish(p)}
+                      className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
+                        p.isPublished
+                          ? 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                          : 'bg-accent text-white hover:bg-accent-dark'
+                      }`}
+                    >
+                      {p.isPublished ? 'Unpublish' : 'Publish'}
+                    </button>
+                  )}
                   <button onClick={() => remove(p)} className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50">Delete</button>
                 </div>
               </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Badge, Card, ErrorNote, Loading, PageHeader, StatCard } from '../../components/ui';
+import { Badge, ErrorNote, Loading } from '../../components/ui';
+import { BarChart, Donut, Legend, Panel, StatTile, CHART_COLORS } from '../../components/dashboard';
 import { api } from '../../lib/api';
 
 export default function AdminOverview() {
@@ -7,80 +8,135 @@ export default function AdminOverview() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.admin
-      .stats()
-      .then(setStats)
-      .catch((e) => setError(e.message));
+    api.admin.stats().then(setStats).catch((e) => setError(e.message));
   }, []);
 
   if (error) return <ErrorNote>{error}</ErrorNote>;
   if (!stats) return <Loading />;
 
+  const barData = [
+    { label: 'Trial', value: stats.subscriptions.trialing },
+    { label: 'Monthly', value: stats.subscriptions.monthly },
+    { label: 'Yearly', value: stats.subscriptions.yearly },
+    { label: 'None', value: stats.subscriptions.inactive },
+  ];
+
+  const donutSegments = [
+    { label: 'Owners', value: stats.users.owners, color: CHART_COLORS.brand },
+    { label: 'Clients', value: stats.users.customers, color: CHART_COLORS.accent },
+    { label: 'Admins', value: stats.users.admins, color: CHART_COLORS.amber },
+  ];
+
+  const paidOwners = stats.subscriptions.monthly + stats.subscriptions.yearly;
+
   return (
     <div>
-      <PageHeader
-        title="System Overview"
-        subtitle="Platform health, usage, and security at a glance."
-      />
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
+        <p className="mt-1 text-sm text-slate-500">Platform health, usage, and security at a glance.</p>
+      </div>
 
-      {/* Usage stats */}
+      {/* KPI tiles */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total users" value={stats.users.total} hint={`${stats.users.active} active`} />
-        <StatCard label="Owners" value={stats.users.owners} tone="accent" />
-        <StatCard label="Clients" value={stats.users.customers} />
-        <StatCard label="Businesses" value={stats.businesses} tone="accent" />
+        <StatTile label="Total Users" value={stats.users.total} hint={`${stats.users.active} active`} highlight />
+        <StatTile label="Business Owners" value={stats.users.owners} hint={`${paidOwners} on a paid plan`} />
+        <StatTile label="Clients" value={stats.users.customers} hint="Registered renters" />
+        <StatTile label="Businesses" value={stats.businesses} hint={`${stats.marketplace?.marketplace ?? 0} on marketplace`} />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Subscriptions */}
-        <Card title="Subscriptions">
-          <ul className="space-y-3 text-sm">
-            <Row label="On free trial" value={stats.subscriptions.trialing} tone="amber" />
-            <Row label="Monthly plan" value={stats.subscriptions.monthly} tone="blue" />
-            <Row label="Yearly plan" value={stats.subscriptions.yearly} tone="green" />
-            <Row label="Inactive / none" value={stats.subscriptions.inactive} tone="slate" />
-          </ul>
-        </Card>
+      {/* Subscriptions + system */}
+      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+        <Panel
+          title="Subscriptions"
+          className="lg:col-span-2"
+          action={<span className="text-xs font-medium text-slate-400">Owners by plan</span>}
+        >
+          <BarChart data={barData} />
+          <div className="mt-4 flex flex-wrap gap-6 border-t border-slate-100 pt-4 text-sm">
+            <Stat label="On free trial" value={stats.subscriptions.trialing} />
+            <Stat label="Paying owners" value={paidOwners} />
+            <Stat label="Inactive" value={stats.subscriptions.inactive} />
+          </div>
+        </Panel>
 
-        {/* System requirements */}
-        <Card title="System">
-          <dl className="grid grid-cols-2 gap-y-3 text-sm">
-            <Dt>Service</Dt><Dd>{stats.system.service}</Dd>
-            <Dt>Environment</Dt><Dd className="capitalize">{stats.system.environment}</Dd>
-            <Dt>Runtime</Dt><Dd>Node {stats.system.nodeVersion}</Dd>
-            <Dt>Database</Dt><Dd>{stats.system.database} {stats.system.dbConnected ? '· connected' : '· down'}</Dd>
-            <Dt>Uptime</Dt><Dd>{formatUptime(stats.system.uptimeSeconds)}</Dd>
+        {/* System status (featured, dark) */}
+        <div
+          className="flex flex-col rounded-2xl p-5 text-white"
+          style={{ background: `linear-gradient(135deg, ${CHART_COLORS.brandDark}, ${CHART_COLORS.brand})` }}
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-white/70">System status</p>
+            <Badge tone={stats.system.dbConnected ? 'green' : 'red'}>
+              {stats.system.dbConnected ? 'Operational' : 'Degraded'}
+            </Badge>
+          </div>
+          <p className="mt-1 text-2xl font-bold">{formatUptime(stats.system.uptimeSeconds)} uptime</p>
+          <dl className="mt-4 space-y-2.5 text-sm">
+            <SysRow label="Environment" value={stats.system.environment} />
+            <SysRow label="Runtime" value={`Node ${stats.system.nodeVersion}`} />
+            <SysRow label="Database" value={stats.system.database} />
+            <SysRow label="Service" value={stats.system.service} />
           </dl>
-        </Card>
+        </div>
       </div>
 
-      {/* Security */}
-      <Card title="Security & Requirements" className="mt-6">
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {stats.security.map((s) => (
-            <li key={s.label} className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
-              <span className="text-sm text-slate-700">{s.label}</span>
-              <Badge tone={s.ok ? 'green' : 'amber'}>{s.status}</Badge>
-            </li>
-          ))}
-        </ul>
-      </Card>
+      {/* Users donut + security */}
+      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+        <Panel title="Users by Role">
+          <Donut segments={donutSegments} centerValue={stats.users.total} centerLabel="Users" />
+          <div className="mt-5">
+            <Legend items={donutSegments} />
+          </div>
+        </Panel>
+
+        <Panel title="Security & Requirements" className="lg:col-span-2">
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {stats.security.map((s) => (
+              <li key={s.label} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-4 py-3">
+                <span className="flex items-center gap-2 text-sm text-slate-700">
+                  <span
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+                      s.ok ? 'bg-accent/15 text-accent-dark' : 'bg-amber-100 text-amber-700'
+                    }`}
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                      {s.ok ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01" />
+                      )}
+                    </svg>
+                  </span>
+                  {s.label}
+                </span>
+                <Badge tone={s.ok ? 'green' : 'amber'}>{s.status}</Badge>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      </div>
     </div>
   );
 }
 
-function Row({ label, value, tone }) {
+function Stat({ label, value }) {
   return (
-    <li className="flex items-center justify-between">
-      <span className="text-slate-600">{label}</span>
-      <Badge tone={tone}>{value}</Badge>
-    </li>
+    <div>
+      <p className="text-xs text-slate-400">{label}</p>
+      <p className="text-lg font-bold text-slate-900">{value}</p>
+    </div>
   );
 }
-const Dt = ({ children }) => <dt className="text-slate-500">{children}</dt>;
-const Dd = ({ children, className = '' }) => (
-  <dd className={`text-right font-medium text-slate-900 ${className}`}>{children}</dd>
-);
+
+function SysRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <dt className="text-white/60">{label}</dt>
+      <dd className="truncate font-medium capitalize text-white">{value}</dd>
+    </div>
+  );
+}
 
 function formatUptime(s) {
   if (s < 60) return `${s}s`;

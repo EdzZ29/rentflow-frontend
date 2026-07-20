@@ -6,6 +6,7 @@ import AdminClients from './pages/admin/AdminClients';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminOverview from './pages/admin/AdminOverview';
 import AdminOwners from './pages/admin/AdminOwners';
+import AdminSubscriptions from './pages/admin/AdminSubscriptions';
 import CustomerBookings from './pages/customer/CustomerBookings';
 import CustomerDashboard from './pages/customer/CustomerDashboard';
 import CustomerOverview from './pages/customer/CustomerOverview';
@@ -18,6 +19,7 @@ import OwnerBusinesses from './pages/owner/OwnerBusinesses';
 import OwnerDashboard from './pages/owner/OwnerDashboard';
 import OwnerOverview from './pages/owner/OwnerOverview';
 import OwnerProducts from './pages/owner/OwnerProducts';
+import OwnerReports from './pages/owner/OwnerReports';
 import OwnerReservations from './pages/owner/OwnerReservations';
 import OwnerSubscription from './pages/owner/OwnerSubscription';
 import Signup from './pages/Signup';
@@ -59,6 +61,7 @@ function App() {
             <Route index element={<AdminOverview />} />
             <Route path="clients" element={<AdminClients />} />
             <Route path="owners" element={<AdminOwners />} />
+            <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="bookings" element={<AdminBookings />} />
           </Route>
 
@@ -75,6 +78,7 @@ function App() {
             <Route path="businesses" element={<OwnerBusinesses />} />
             <Route path="businesses/:businessId/products" element={<OwnerProducts />} />
             <Route path="reservations" element={<OwnerReservations />} />
+            <Route path="reports" element={<OwnerReports />} />
             <Route path="subscription" element={<OwnerSubscription />} />
           </Route>
         </Routes>

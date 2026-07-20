@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Badge, Card, ErrorNote, Loading, PageHeader, StatCard } from '../../components/ui';
+import { Badge, ErrorNote, Loading } from '../../components/ui';
+import { BarChart, Donut, Legend, Panel, StatTile, CHART_COLORS } from '../../components/dashboard';
 import { api } from '../../lib/api';
+import { formatPrice, rentalDays } from '../../lib/currency';
+
+const WEEK = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export default function OwnerOverview() {
   const [sub, setSub] = useState(null);
@@ -34,24 +38,99 @@ export default function OwnerOverview() {
   if (error) return <ErrorNote>{error}</ErrorNote>;
   if (!sub || !businesses) return <Loading />;
 
+  // ── Derived metrics ───────────────────────────────────
   const planLabel = sub.effectivePlan === 'none' ? 'No active plan' : sub.effectivePlan;
   const pending = reservations.filter((r) => r.status === 'pending');
+  const confirmed = reservations.filter((r) => r.status === 'confirmed');
+  const completed = reservations.filter((r) => r.status === 'completed');
+  const currency = reservations[0]?.product?.currency || 'PHP';
+  const earned = [...confirmed, ...completed].reduce(
+    (sum, r) => sum + rentalDays(r.startDate, r.endDate) * Number(r.product?.pricePerDay || 0),
+    0,
+  );
+  const completionPct = reservations.length
+    ? Math.round((completed.length / reservations.length) * 100)
+    : 0;
+
+  const counts = [0, 0, 0, 0, 0, 0, 0];
+  reservations.forEach((r) => {
+    const d = new Date(r.startDate);
+    if (!Number.isNaN(d.getTime())) counts[d.getDay()]++;
+  });
+  const barData = WEEK.map((label, i) => ({ label, value: counts[i] }));
+
+  const donutSegments = [
+    { label: 'Completed', value: completed.length, color: CHART_COLORS.brand },
+    { label: 'Confirmed', value: confirmed.length, color: CHART_COLORS.accent },
+    { label: 'Pending', value: pending.length, color: CHART_COLORS.amber },
+  ];
+
+  const recent = [...reservations].sort((a, b) => (b.id || 0) - (a.id || 0)).slice(0, 5);
 
   return (
     <div>
-      <PageHeader title="Overview" subtitle="Your rental business at a glance." />
+      {/* Header */}
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-500">Manage your rentals, bookings, and plan with ease.</p>
+        </div>
+        <div className="flex gap-2">
+          <Link
+            to="/owner/businesses"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-dark"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+            </svg>
+            Add Business
+          </Link>
+          <Link
+            to="/owner/subscription"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+          >
+            Manage Plan
+          </Link>
+        </div>
+      </div>
 
-      {/* Plan / trial banner */}
-      <div className="mb-6 rounded-xl border border-accent/30 bg-accent/5 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* KPI tiles */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile label="Total Bookings" value={reservations.length} hint="All-time reservations" highlight />
+        <StatTile label="Confirmed" value={confirmed.length} hint="Ready to hand off" />
+        <StatTile label="Pending Approval" value={pending.length} hint="Needs your action" />
+        <StatTile label="Estimated Revenue" value={formatPrice(earned, currency)} hint="Confirmed + completed" />
+      </div>
+
+      {/* Analytics + plan */}
+      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+        <Panel
+          title="Booking Activity"
+          className="lg:col-span-2"
+          action={<span className="text-xs font-medium text-slate-400">By day of week</span>}
+        >
+          <BarChart data={barData} />
+          <div className="mt-4 flex flex-wrap gap-6 border-t border-slate-100 pt-4 text-sm">
+            <Stat label="Businesses" value={`${businesses.length} / ${sub.businessLimit}`} />
+            <Stat label="Completed" value={completed.length} />
+            <Stat label="Completion rate" value={`${completionPct}%`} />
+          </div>
+        </Panel>
+
+        {/* Plan card (featured, dark) */}
+        <div
+          className="flex flex-col justify-between rounded-2xl p-5 text-white"
+          style={{ background: `linear-gradient(135deg, ${CHART_COLORS.brandDark}, ${CHART_COLORS.brand})` }}
+        >
           <div>
-            <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-              Current plan
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-white/70">Current plan</p>
               <Badge tone={sub.isTrialActive ? 'amber' : sub.effectivePlan === 'none' ? 'slate' : 'green'}>
-                {planLabel}
+                {sub.isTrialActive ? 'Trial' : sub.effectivePlan === 'none' ? 'Inactive' : 'Active'}
               </Badge>
-            </p>
-            <p className="mt-1 text-sm text-slate-600">
+            </div>
+            <p className="mt-1 text-2xl font-bold capitalize">{planLabel}</p>
+            <p className="mt-2 text-sm text-white/70">
               {sub.isTrialActive
                 ? `Your free trial ends in ${sub.trialDaysLeft} day${sub.trialDaysLeft === 1 ? '' : 's'}.`
                 : sub.effectivePlan === 'none'
@@ -61,81 +140,140 @@ export default function OwnerOverview() {
           </div>
           <Link
             to="/owner/subscription"
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-dark"
+            className="mt-5 inline-flex items-center justify-center rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-brand transition-colors hover:bg-white/90"
           >
             Manage plan
           </Link>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-4">
-        <StatCard label="Businesses" value={businesses.length} hint={`Limit: ${sub.businessLimit}`} />
-        <StatCard label="Total bookings" value={reservations.length} tone="accent" />
-        <StatCard label="Pending approval" value={pending.length} />
-        <StatCard
-          label="Trial days left"
-          value={sub.isTrialActive ? sub.trialDaysLeft : '—'}
-        />
+      {/* Requests + progress */}
+      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+        <Panel
+          title="Booking Requests"
+          className="lg:col-span-2"
+          action={
+            <Link to="/owner/reservations" className="text-xs font-semibold text-accent hover:underline">
+              View all
+            </Link>
+          }
+        >
+          {pending.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">No pending requests right now.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {pending.slice(0, 5).map((r) => (
+                <li key={r.id} className="flex items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-900">{r.product?.name}</p>
+                    <p className="truncate text-xs text-slate-500">
+                      {r.startDate} → {r.endDate} · {r.customer?.fullName}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      onClick={() => approve(r)}
+                      className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-dark"
+                    >
+                      Approve
+                    </button>
+                    <Link
+                      to="/owner/reservations"
+                      className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      Manage
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel title="Booking Progress">
+          <Donut segments={donutSegments} centerValue={`${completionPct}%`} centerLabel="Completed" />
+          <div className="mt-5">
+            <Legend items={donutSegments} />
+          </div>
+        </Panel>
       </div>
 
-      {/* Booking requests needing action */}
-      <Card title="Booking requests" className="mt-6">
-        {pending.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            No pending requests.{' '}
-            <Link to="/owner/reservations" className="font-semibold text-accent hover:underline">
-              View all bookings →
+      {/* Businesses + recent */}
+      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+        <Panel
+          title="Your Businesses"
+          action={
+            <Link to="/owner/businesses" className="text-xs font-semibold text-accent hover:underline">
+              Manage
             </Link>
-          </p>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {pending.slice(0, 5).map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-3 py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">{r.product?.name}</p>
-                  <p className="text-xs text-slate-500">
-                    {r.startDate} → {r.endDate} · {r.customer?.fullName}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => approve(r)} className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-dark">
-                    ✓ Approve
-                  </button>
-                  <Link to="/owner/reservations" className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
-                    Manage
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+          }
+        >
+          {businesses.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">
+              You haven&apos;t added any businesses yet.
+            </p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {businesses.map((b) => (
+                <li key={b.id} className="flex items-center justify-between py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-900">{b.name}</p>
+                    <p className="truncate text-xs text-slate-500">
+                      {b.category}
+                      {b.location ? ` · ${b.location}` : ''}
+                    </p>
+                  </div>
+                  <Badge tone={b.status === 'active' ? 'green' : 'amber'}>{b.status}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
 
-      <Card title="Your businesses" className="mt-6">
-        {businesses.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            You haven't added any businesses yet.{' '}
-            <Link to="/owner/businesses" className="font-semibold text-accent hover:underline">
-              Add your first business →
+        <Panel
+          title="Recent Bookings"
+          action={
+            <Link to="/owner/reservations" className="text-xs font-semibold text-accent hover:underline">
+              View all
             </Link>
-          </p>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {businesses.map((b) => (
-              <li key={b.id} className="flex items-center justify-between py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">{b.name}</p>
-                  <p className="text-xs text-slate-500">
-                    {b.category}
-                    {b.location ? ` · ${b.location}` : ''}
-                  </p>
-                </div>
-                <Badge tone={b.status === 'active' ? 'green' : 'amber'}>{b.status}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+          }
+        >
+          {recent.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">No bookings yet.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {recent.map((r) => {
+                const total = rentalDays(r.startDate, r.endDate) * Number(r.product?.pricePerDay || 0);
+                return (
+                  <li key={r.id} className="flex items-center justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-900">{r.product?.name}</p>
+                      <p className="truncate text-xs text-slate-500">
+                        {r.startDate} → {r.endDate}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-semibold text-slate-900">{formatPrice(total, r.product?.currency)}</p>
+                      <Badge tone={STATUS_TONE[r.status] || 'slate'}>{r.status}</Badge>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+const STATUS_TONE = { pending: 'amber', confirmed: 'green', cancelled: 'red', completed: 'blue' };
+
+function Stat({ label, value }) {
+  return (
+    <div>
+      <p className="text-xs text-slate-400">{label}</p>
+      <p className="text-lg font-bold text-slate-900">{value}</p>
     </div>
   );
 }
