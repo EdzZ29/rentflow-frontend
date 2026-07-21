@@ -1,8 +1,67 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Logo from './Logo';
+import NotificationBell from './NotificationBell';
 
-export default function DashboardLayout({ nav, roleLabel }) {
+const linkClass = ({ isActive }) =>
+  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+    isActive ? 'bg-accent/10 text-accent-dark' : 'text-slate-600 hover:bg-slate-100'
+  }`;
+
+// A collapsible sidebar section whose children are routed links. Opens
+// automatically when the current route is one of its children.
+function NavGroup({ item }) {
+  const { pathname } = useLocation();
+  const hasActiveChild = item.children.some((c) =>
+    c.end ? pathname === c.to : pathname.startsWith(c.to),
+  );
+  const [open, setOpen] = useState(hasActiveChild);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+          hasActiveChild ? 'text-accent-dark' : 'text-slate-600 hover:bg-slate-100'
+        }`}
+      >
+        <span className="h-5 w-5">{item.icon}</span>
+        {item.label}
+        <svg
+          className={`ml-auto h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="mt-1 space-y-1 pl-4">
+          {item.children.map((c) => (
+            <NavLink
+              key={c.to}
+              to={c.to}
+              end={c.end}
+              className={({ isActive }) =>
+                `block rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  isActive ? 'bg-accent/10 text-accent-dark' : 'text-slate-500 hover:bg-slate-100'
+                }`
+              }
+            >
+              {c.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function DashboardLayout({ nav, roleLabel, banner }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -14,12 +73,8 @@ export default function DashboardLayout({ nav, roleLabel }) {
   const displayName = user?.fullName || user?.email || 'Account';
   const initial = displayName.trim().charAt(0).toUpperCase() || '?';
 
-  const linkClass = ({ isActive }) =>
-    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-      isActive
-        ? 'bg-accent/10 text-accent-dark'
-        : 'text-slate-600 hover:bg-slate-100'
-    }`;
+  // Flatten groups for the horizontal mobile nav.
+  const mobileItems = nav.flatMap((item) => (item.children ? item.children : [item]));
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -37,12 +92,16 @@ export default function DashboardLayout({ nav, roleLabel }) {
           <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
             {roleLabel}
           </p>
-          {nav.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={linkClass}>
-              <span className="h-5 w-5">{item.icon}</span>
-              {item.label}
-            </NavLink>
-          ))}
+          {nav.map((item) =>
+            item.children ? (
+              <NavGroup key={item.label} item={item} />
+            ) : (
+              <NavLink key={item.to} to={item.to} end={item.end} className={linkClass}>
+                <span className="h-5 w-5">{item.icon}</span>
+                {item.label}
+              </NavLink>
+            ),
+          )}
         </nav>
 
         <div className="border-t border-slate-100 p-4">
@@ -73,16 +132,7 @@ export default function DashboardLayout({ nav, roleLabel }) {
             />
           </div>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              aria-label="Notifications"
-              className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50"
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent ring-2 ring-white" />
-            </button>
+            <NotificationBell />
             <div className="flex items-center gap-2.5">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-accent to-brand text-sm font-semibold text-white">
                 {initial}
@@ -102,15 +152,18 @@ export default function DashboardLayout({ nav, roleLabel }) {
               <span className="text-brand">Rent</span>
               <span className="text-accent">Flow</span>
             </span>
-            <button
-              onClick={onLogout}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600"
-            >
-              Log out
-            </button>
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <button
+                onClick={onLogout}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600"
+              >
+                Log out
+              </button>
+            </div>
           </div>
           <nav className="mt-3 flex gap-2 overflow-x-auto">
-            {nav.map((item) => (
+            {mobileItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -128,6 +181,7 @@ export default function DashboardLayout({ nav, roleLabel }) {
         </header>
 
         <main className="p-5 lg:p-8">
+          {banner}
           <Outlet />
         </main>
       </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge, Card, ErrorNote, Loading, PageHeader, StatCard } from '../../components/ui';
+import { useRealtime } from '../../context/RealtimeContext';
 import { api } from '../../lib/api';
 import { formatPrice, rentalDays } from '../../lib/currency';
 
@@ -9,10 +10,16 @@ const statusTone = { pending: 'amber', confirmed: 'green', cancelled: 'red', com
 export default function CustomerOverview() {
   const [items, setItems] = useState(null);
   const [error, setError] = useState('');
+  const { subscribe } = useRealtime();
+
+  const load = () => api.bookings.list().then(setItems).catch((e) => setError(e.message));
 
   useEffect(() => {
-    api.bookings.list().then(setItems).catch((e) => setError(e.message));
+    load();
   }, []);
+
+  // Live-refresh when a booking's status changes.
+  useEffect(() => subscribe('reservation', load), [subscribe]);
 
   if (error) return <ErrorNote>{error}</ErrorNote>;
   if (!items) return <Loading />;

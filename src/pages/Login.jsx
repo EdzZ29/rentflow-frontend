@@ -1,13 +1,26 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout';
+import OAuthButtons from '../components/OAuthButtons';
+import PasswordInput from '../components/PasswordInput';
 import { homePathForRole, useAuth } from '../context/AuthContext';
+
+// Friendly copy for the ?error=… codes the OAuth callback can redirect with.
+const OAUTH_ERRORS = {
+  cancelled: 'Sign-in was cancelled. Please try again.',
+  oauth_failed: "We couldn't sign you in with that provider. Please try again.",
+  email_unverified:
+    'Your provider account email is not verified. Verify it, or log in with email and password.',
+  no_email:
+    'That provider did not share an email address, which we need to sign you in.',
+};
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const [params] = useSearchParams();
   const [form, setForm] = useState({ email: '', password: '' });
-  const [error, setError] = useState('');
+  const [error, setError] = useState(OAUTH_ERRORS[params.get('error')] || '');
   const [loading, setLoading] = useState(false);
 
   const onChange = (e) =>
@@ -58,18 +71,17 @@ export default function Login() {
           <label className="block">
             <div className="mb-1.5 flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">Password</span>
-              <a href="#" className="text-xs font-medium text-accent hover:underline">
+              <Link to="/forgot-password" className="text-xs font-medium text-accent hover:underline">
                 Forgot password?
-              </a>
+              </Link>
             </div>
-            <input
-              required
-              type="password"
+            <PasswordInput
               name="password"
               value={form.password}
               onChange={onChange}
               placeholder="Your password"
-              className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20"
+              autoComplete="current-password"
+              showChecklist={false}
             />
           </label>
 
@@ -81,6 +93,14 @@ export default function Login() {
             {loading ? 'Logging in…' : 'Log in'}
           </button>
         </form>
+
+        <div className="my-6 flex items-center gap-3">
+          <span className="h-px flex-1 bg-slate-200" />
+          <span className="text-xs font-medium uppercase tracking-wider text-slate-400">or</span>
+          <span className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        <OAuthButtons label="Sign in" />
 
         <p className="mt-6 text-center text-sm text-slate-600">
           Don't have an account?{' '}

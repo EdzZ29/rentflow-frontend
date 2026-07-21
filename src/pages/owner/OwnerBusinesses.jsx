@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import ImagePicker from '../../components/ImagePicker';
 import Modal from '../../components/Modal';
 import { Badge, Card, ErrorNote, Loading, PageHeader } from '../../components/ui';
+import { useOwnerPlan } from '../../context/OwnerPlanContext';
 import { api, assetUrl } from '../../lib/api';
 
 const CATEGORIES = [
@@ -26,6 +27,7 @@ export default function OwnerBusinesses() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(null);
+  const { isActive } = useOwnerPlan();
 
   const load = () =>
     Promise.all([api.businesses.list(), api.subscription.get()])
@@ -95,7 +97,15 @@ export default function OwnerBusinesses() {
       <div className="mt-4 grid gap-6 lg:grid-cols-3">
         {/* Add form */}
         <Card title="Add a business" className="lg:col-span-1">
-          {atLimit ? (
+          {!isActive ? (
+            <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">
+              Your plan has expired.{' '}
+              <Link to="/owner/subscription" className="font-semibold underline">
+                Subscribe to a plan
+              </Link>{' '}
+              to add and manage businesses.
+            </div>
+          ) : atLimit ? (
             <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">
               You've reached your plan limit.{' '}
               <Link to="/owner/subscription" className="font-semibold underline">
@@ -185,11 +195,11 @@ export default function OwnerBusinesses() {
                     Manage products
                   </Link>
                   <div className="flex gap-2">
-                    <button onClick={() => setEditing(b)} className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">Edit</button>
-                    <button onClick={() => toggleStatus(b)} className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                    <button onClick={() => setEditing(b)} disabled={!isActive} title={!isActive ? 'Subscribe to edit' : undefined} className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Edit</button>
+                    <button onClick={() => toggleStatus(b)} disabled={!isActive} title={!isActive ? 'Subscribe to manage' : undefined} className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
                       {b.status === 'active' ? 'Pause' : 'Activate'}
                     </button>
-                    <button onClick={() => remove(b)} className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50">Delete</button>
+                    <button onClick={() => remove(b)} disabled={!isActive} title={!isActive ? 'Subscribe to delete' : undefined} className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Delete</button>
                   </div>
                 </div>
               </div>

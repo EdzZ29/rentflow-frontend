@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge, ErrorNote, Loading } from '../../components/ui';
 import { BarChart, Donut, Legend, Panel, StatTile, CHART_COLORS } from '../../components/dashboard';
+import { useOwnerPlan } from '../../context/OwnerPlanContext';
+import { useRealtime } from '../../context/RealtimeContext';
 import { api } from '../../lib/api';
 import { formatPrice, rentalDays } from '../../lib/currency';
 
@@ -12,6 +14,9 @@ export default function OwnerOverview() {
   const [businesses, setBusinesses] = useState(null);
   const [reservations, setReservations] = useState([]);
   const [error, setError] = useState('');
+
+  const { subscribe } = useRealtime();
+  const { isActive } = useOwnerPlan();
 
   const loadReservations = () =>
     api.reservations.list().then(setReservations).catch(() => {});
@@ -25,6 +30,9 @@ export default function OwnerOverview() {
       .catch((e) => setError(e.message));
     loadReservations();
   }, []);
+
+  // Live-refresh the dashboard metrics + chart as bookings come in / change.
+  useEffect(() => subscribe('reservation', loadReservations), [subscribe]);
 
   const approve = async (r) => {
     try {
@@ -52,12 +60,24 @@ export default function OwnerOverview() {
     ? Math.round((completed.length / reservations.length) * 100)
     : 0;
 
-  const counts = [0, 0, 0, 0, 0, 0, 0];
-  reservations.forEach((r) => {
-    const d = new Date(r.startDate);
-    if (!Number.isNaN(d.getTime())) counts[d.getDay()]++;
+  // Booking activity over the last 7 days, keyed on when each booking was
+  // placed (createdAt) — so a booking made today lands on today's bar, not on
+  // the weekday of its future rental start date.
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(startOfToday.getTime() - (6 - i) * DAY_MS);
+    return { label: WEEK[d.getDay()], value: 0 };
   });
-  const barData = WEEK.map((label, i) => ({ label, value: counts[i] }));
+  reservations.forEach((r) => {
+    const created = new Date(r.createdAt);
+    if (Number.isNaN(created.getTime())) return;
+    created.setHours(0, 0, 0, 0);
+    const idx = 6 - Math.round((startOfToday.getTime() - created.getTime()) / DAY_MS);
+    if (idx >= 0 && idx < 7) days[idx].value++;
+  });
+  const barData = days;
 
   const donutSegments = [
     { label: 'Completed', value: completed.length, color: CHART_COLORS.brand },
@@ -107,7 +127,7 @@ export default function OwnerOverview() {
         <Panel
           title="Booking Activity"
           className="lg:col-span-2"
-          action={<span className="text-xs font-medium text-slate-400">By day of week</span>}
+          action={<span className="text-xs font-medium text-slate-400">Last 7 days</span>}
         >
           <BarChart data={barData} />
           <div className="mt-4 flex flex-wrap gap-6 border-t border-slate-100 pt-4 text-sm">
@@ -153,7 +173,7 @@ export default function OwnerOverview() {
           title="Booking Requests"
           className="lg:col-span-2"
           action={
-            <Link to="/owner/reservations" className="text-xs font-semibold text-accent hover:underline">
+            <Link to="/owner/bookings" className="text-xs font-semibold text-accent hover:underline">
               View all
             </Link>
           }
@@ -173,12 +193,14 @@ export default function OwnerOverview() {
                   <div className="flex shrink-0 gap-2">
                     <button
                       onClick={() => approve(r)}
-                      className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-dark"
+                      disabled={!isActive}
+                      title={!isActive ? 'Subscribe to approve bookings' : undefined}
+                      className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Approve
                     </button>
                     <Link
-                      to="/owner/reservations"
+                      to="/owner/bookings"
                       className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
                     >
                       Manage
@@ -233,7 +255,7 @@ export default function OwnerOverview() {
         <Panel
           title="Recent Bookings"
           action={
-            <Link to="/owner/reservations" className="text-xs font-semibold text-accent hover:underline">
+            <Link to="/owner/bookings" className="text-xs font-semibold text-accent hover:underline">
               View all
             </Link>
           }

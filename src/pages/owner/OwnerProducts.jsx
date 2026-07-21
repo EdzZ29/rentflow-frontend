@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Modal from '../../components/Modal';
 import { Badge, Card, ErrorNote, Loading, PageHeader } from '../../components/ui';
+import { useOwnerPlan } from '../../context/OwnerPlanContext';
 import { api, assetUrl } from '../../lib/api';
 import { CURRENCIES, DEFAULT_CURRENCY, formatPrice } from '../../lib/currency';
 
@@ -38,6 +39,7 @@ export default function OwnerProducts() {
   const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(null); // product being edited
+  const { isActive } = useOwnerPlan();
 
   const load = () =>
     api.products
@@ -134,6 +136,15 @@ export default function OwnerProducts() {
       <div className="mt-4 grid gap-6 lg:grid-cols-3">
         {/* Add product */}
         <Card title="Add a product" className="lg:col-span-1">
+          {!isActive ? (
+            <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">
+              Your plan has expired.{' '}
+              <Link to="/owner/subscription" className="font-semibold underline">
+                Subscribe to a plan
+              </Link>{' '}
+              to add and manage products.
+            </div>
+          ) : (
           <form onSubmit={onCreate} className="space-y-3">
             <Input label="Product name" name="name" value={form.name} onChange={onChange} required placeholder="Toyota Vios 2022" />
             <label className="block">
@@ -159,6 +170,7 @@ export default function OwnerProducts() {
               {saving ? 'Adding…' : 'Add product'}
             </button>
           </form>
+          )}
         </Card>
 
         {/* Product list */}
@@ -194,14 +206,16 @@ export default function OwnerProducts() {
                 <p className="text-sm font-medium text-brand">{formatPrice(p.pricePerDay, p.currency)}/day</p>
                 {p.description && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{p.description}</p>}
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <button onClick={() => setEditing(p)} className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">Edit</button>
-                  <button onClick={() => toggleAvail(p)} className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                  <button onClick={() => setEditing(p)} disabled={!isActive} title={!isActive ? 'Subscribe to edit' : undefined} className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Edit</button>
+                  <button onClick={() => toggleAvail(p)} disabled={!isActive} title={!isActive ? 'Subscribe to manage' : undefined} className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
                     {p.availability === 'available' ? 'Mark unavailable' : 'Mark available'}
                   </button>
                   {isMarketplace && (
                     <button
                       onClick={() => togglePublish(p)}
-                      className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
+                      disabled={!isActive}
+                      title={!isActive ? 'Subscribe to publish' : undefined}
+                      className={`rounded-md px-2.5 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
                         p.isPublished
                           ? 'border border-slate-200 text-slate-600 hover:bg-slate-50'
                           : 'bg-accent text-white hover:bg-accent-dark'
@@ -210,7 +224,7 @@ export default function OwnerProducts() {
                       {p.isPublished ? 'Unpublish' : 'Publish'}
                     </button>
                   )}
-                  <button onClick={() => remove(p)} className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50">Delete</button>
+                  <button onClick={() => remove(p)} disabled={!isActive} title={!isActive ? 'Subscribe to delete' : undefined} className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Delete</button>
                 </div>
               </div>
             </div>

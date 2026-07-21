@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Badge, ErrorNote, Loading, PageHeader } from '../../components/ui';
+import { useRealtime } from '../../context/RealtimeContext';
 import { api } from '../../lib/api';
 import { formatPrice, rentalDays } from '../../lib/currency';
 
@@ -8,10 +9,16 @@ const statusTone = { pending: 'amber', confirmed: 'green', cancelled: 'red', com
 export default function AdminBookings() {
   const [items, setItems] = useState(null);
   const [error, setError] = useState('');
+  const { subscribe } = useRealtime();
+
+  const load = () => api.reservations.list().then(setItems).catch((e) => setError(e.message));
 
   useEffect(() => {
-    api.reservations.list().then(setItems).catch((e) => setError(e.message));
+    load();
   }, []);
+
+  // Live-refresh whenever any booking is created or updated platform-wide.
+  useEffect(() => subscribe('reservation', load), [subscribe]);
 
   if (!items && !error) return <Loading />;
 

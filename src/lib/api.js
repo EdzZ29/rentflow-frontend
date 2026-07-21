@@ -14,6 +14,12 @@ export function assetUrl(path) {
   return `${ORIGIN}${path}`;
 }
 
+// URL for the live Server-Sent Events stream (auth via the httpOnly cookie).
+export const realtimeUrl = () => `${API_URL}/realtime/stream`;
+
+// Full URL that starts a provider OAuth flow (we redirect the browser here).
+export const oauthUrl = (provider) => `${API_URL}/auth/${provider}`;
+
 // Build a "?a=b&c=d" query string, dropping empty values.
 function qs(params) {
   const s = new URLSearchParams(
@@ -56,6 +62,10 @@ export const api = {
   login: (data) => request('/auth/login', { method: 'POST', body: data }),
   logout: () => request('/auth/logout', { method: 'POST' }),
   me: () => request('/auth/me'),
+  forgotPassword: (email) =>
+    request('/auth/forgot-password', { method: 'POST', body: { email } }),
+  resetPassword: (token, password) =>
+    request('/auth/reset-password', { method: 'POST', body: { token, password } }),
 
   // ── Users (admin) ─────────────────────────────────────
   users: {
@@ -121,6 +131,9 @@ export const api = {
   bookings: {
     list: () => request('/reservations'),
     create: (data) => request('/reservations', { method: 'POST', body: data }),
+    // Owner records a booking for a walk-in/offline customer.
+    createForOwner: (data) =>
+      request('/reservations/owner', { method: 'POST', body: data }),
     updateStatus: (id, status) =>
       request(`/reservations/${id}`, { method: 'PATCH', body: { status } }),
   },
@@ -129,6 +142,18 @@ export const api = {
     list: () => request('/reservations'),
     updateStatus: (id, status) =>
       request(`/reservations/${id}`, { method: 'PATCH', body: { status } }),
+  },
+
+  // ── Notifications ─────────────────────────────────────
+  notifications: {
+    list: () => request('/notifications'),
+    markRead: (id) => request(`/notifications/${id}/read`, { method: 'PATCH' }),
+    markAllRead: () => request('/notifications/read-all', { method: 'PATCH' }),
+  },
+
+  // ── Owner activity log ────────────────────────────────
+  activity: {
+    list: (params = {}) => request(`/owner/activity${qs(params)}`),
   },
 
   // ── Owner subscription ────────────────────────────────

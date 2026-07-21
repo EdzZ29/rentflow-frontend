@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge, ErrorNote, Loading, PageHeader } from '../../components/ui';
+import { useRealtime } from '../../context/RealtimeContext';
 import { api, assetUrl } from '../../lib/api';
 import { formatPrice, rentalDays } from '../../lib/currency';
 
@@ -10,10 +11,14 @@ export default function CustomerBookings() {
   const [items, setItems] = useState(null);
   const [error, setError] = useState('');
 
+  const { subscribe } = useRealtime();
   const load = () => api.bookings.list().then(setItems).catch((e) => setError(e.message));
   useEffect(() => {
     load();
   }, []);
+
+  // Live-refresh when the owner confirms/completes/cancels a booking.
+  useEffect(() => subscribe('reservation', load), [subscribe]);
 
   const cancel = async (r) => {
     if (!window.confirm('Cancel this booking?')) return;
