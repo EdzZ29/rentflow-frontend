@@ -62,6 +62,19 @@ export const api = {
   login: (data) => request('/auth/login', { method: 'POST', body: data }),
   logout: () => request('/auth/logout', { method: 'POST' }),
   me: () => request('/auth/me'),
+  // Self-service profile (name / email / password) for the signed-in user.
+  updateProfile: (data) => request('/auth/me', { method: 'PATCH', body: data }),
+  uploadAvatar: async (file) => {
+    const fd = new FormData();
+    fd.append('image', file);
+    const res = await fetch(`${API_URL}/auth/me/avatar`, {
+      method: 'POST',
+      credentials: 'include',
+      body: fd,
+    });
+    if (!res.ok) throw new Error('Avatar upload failed');
+    return res.json();
+  },
   forgotPassword: (email) =>
     request('/auth/forgot-password', { method: 'POST', body: { email } }),
   resetPassword: (token, password) =>

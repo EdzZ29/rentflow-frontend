@@ -40,8 +40,15 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // Refresh the cached user from the API (after a profile edit, etc.).
+  const refreshUser = async () => {
+    const me = await api.me();
+    setUser(me);
+    return me;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
@@ -53,6 +60,7 @@ export function useAuth() {
 }
 
 // Where each role lands after authenticating.
+// eslint-disable-next-line react-refresh/only-export-components
 export function homePathForRole(role) {
   if (role === 'admin') return '/admin';
   if (role === 'owner') return '/owner';

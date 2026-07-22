@@ -26,6 +26,7 @@ const nav = [
   { to: '/owner/reports', label: 'Reports & Analytics', icon: <Icon d="M3 3v18h18M9 17V9m4 8V5m4 12v-6" /> },
   { to: '/owner/activity', label: 'Activity Log', icon: <Icon d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /> },
   { to: '/owner/subscription', label: 'Subscription', icon: <Icon d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /> },
+  { to: '/owner/profile', label: 'Profile', icon: <Icon d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /> },
 ];
 
 export default function OwnerDashboard() {

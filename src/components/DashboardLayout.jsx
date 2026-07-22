@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { assetUrl } from '../lib/api';
 import Logo from './Logo';
 import NotificationBell from './NotificationBell';
 
@@ -72,6 +73,7 @@ export default function DashboardLayout({ nav, roleLabel, banner }) {
 
   const displayName = user?.fullName || user?.email || 'Account';
   const initial = displayName.trim().charAt(0).toUpperCase() || '?';
+  const avatar = user?.avatarUrl ? assetUrl(user.avatarUrl) : null;
 
   // Flatten groups for the horizontal mobile nav.
   const mobileItems = nav.flatMap((item) => (item.children ? item.children : [item]));
@@ -134,9 +136,13 @@ export default function DashboardLayout({ nav, roleLabel, banner }) {
           <div className="flex items-center gap-3">
             <NotificationBell />
             <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-accent to-brand text-sm font-semibold text-white">
-                {initial}
-              </span>
+              {avatar ? (
+                <img src={avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+              ) : (
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-accent to-brand text-sm font-semibold text-white">
+                  {initial}
+                </span>
+              )}
               <div className="leading-tight">
                 <p className="max-w-[12rem] truncate text-sm font-semibold text-slate-900">{displayName}</p>
                 <p className="text-xs capitalize text-slate-400">{roleLabel}</p>

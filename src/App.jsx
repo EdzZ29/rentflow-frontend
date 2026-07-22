@@ -27,6 +27,7 @@ import OwnerDashboard from './pages/owner/OwnerDashboard';
 import OwnerManageBookings from './pages/owner/OwnerManageBookings';
 import OwnerOverview from './pages/owner/OwnerOverview';
 import OwnerProducts from './pages/owner/OwnerProducts';
+import OwnerProfile from './pages/owner/OwnerProfile';
 import OwnerReports from './pages/owner/OwnerReports';
 import OwnerReservationsList from './pages/owner/OwnerReservationsList';
 import OwnerSubscription from './pages/owner/OwnerSubscription';
@@ -98,6 +99,7 @@ function App() {
             <Route path="reports" element={<OwnerReports />} />
             <Route path="activity" element={<OwnerActivity />} />
             <Route path="subscription" element={<OwnerSubscription />} />
+            <Route path="profile" element={<OwnerProfile />} />
           </Route>
         </Routes>
         <SpeedInsights />
