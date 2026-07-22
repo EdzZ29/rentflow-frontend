@@ -31,7 +31,7 @@ import OwnerReports from './pages/owner/OwnerReports';
 import OwnerReservationsList from './pages/owner/OwnerReservationsList';
 import OwnerSubscription from './pages/owner/OwnerSubscription';
 import Signup from './pages/Signup';
-import { SpeedInsights } from "@vercel/speed-insights/next"
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 function App() {
   return (
