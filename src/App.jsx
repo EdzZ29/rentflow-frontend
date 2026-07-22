@@ -32,6 +32,7 @@ import OwnerReservationsList from './pages/owner/OwnerReservationsList';
 import OwnerSubscription from './pages/owner/OwnerSubscription';
 import Signup from './pages/Signup';
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from '@vercel/analytics/react';
 
 function App() {
   return (
@@ -49,6 +50,7 @@ function App() {
           <Route path="/rentals/business/:id" element={<RentalDetail />} />
           <Route path="/rentals/product/:id" element={<ProductDetail />} />
           <SpeedInsights />
+          <Analytics />
 
           {/* Customer */}
           <Route
