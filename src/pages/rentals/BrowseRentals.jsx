@@ -241,7 +241,7 @@ function ProductCard({ p }) {
 function PackageCard({ p }) {
   const unit = p.priceUnit === 'day' ? '/day' : '';
   return (
-    <Link to={`/rentals/${p.businessId}`} className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <Link to={`/rentals/business/${p.businessId}`} className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-all hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-gradient-to-br from-brand/10 to-accent/20 px-4 py-3">
         <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand">
           <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">

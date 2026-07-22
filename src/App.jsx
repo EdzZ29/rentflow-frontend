@@ -49,8 +49,6 @@ function App() {
           <Route path="/rentals" element={<BrowseRentals />} />
           <Route path="/rentals/business/:id" element={<RentalDetail />} />
           <Route path="/rentals/product/:id" element={<ProductDetail />} />
-          <SpeedInsights />
-          <Analytics />
 
           {/* Customer */}
           <Route
@@ -102,6 +100,8 @@ function App() {
             <Route path="subscription" element={<OwnerSubscription />} />
           </Route>
         </Routes>
+        <SpeedInsights />
+        <Analytics />
       </BrowserRouter>
       </RealtimeProvider>
     </AuthProvider>
