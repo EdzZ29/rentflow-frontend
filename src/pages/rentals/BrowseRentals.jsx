@@ -17,12 +17,19 @@ const BIZ_SORTS = [
   { key: 'newest', label: 'Newest' },
   { key: 'name', label: 'Name A–Z' },
 ];
+const PKG_SORTS = [
+  { key: 'newest', label: 'Newest' },
+  { key: 'price_asc', label: 'Price: Low to High' },
+  { key: 'price_desc', label: 'Price: High to Low' },
+  { key: 'name', label: 'Name A–Z' },
+];
 
 export default function BrowseRentals() {
   const [params, setParams] = useSearchParams();
   const category = params.get('category') || '';
-  const [view, setView] = useState('items'); // items | businesses
+  const [view, setView] = useState('items'); // items | packages | businesses
   const [products, setProducts] = useState(null);
+  const [packages, setPackages] = useState(null);
   const [businesses, setBusinesses] = useState(null);
   const [search, setSearch] = useState(params.get('q') || '');
   const [location, setLocation] = useState('');
@@ -30,9 +37,10 @@ export default function BrowseRentals() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([api.rentals.products(), api.rentals.list()])
-      .then(([p, b]) => {
+    Promise.all([api.rentals.products(), api.rentals.packages(), api.rentals.list()])
+      .then(([p, pkg, b]) => {
         setProducts(p);
+        setPackages(pkg);
         setBusinesses(b);
       })
       .catch((e) => setError(e.message));
@@ -45,7 +53,7 @@ export default function BrowseRentals() {
     setParams(next);
   };
 
-  const dataset = view === 'items' ? products : businesses;
+  const dataset = view === 'items' ? products : view === 'packages' ? packages : businesses;
 
   const counts = useMemo(() => {
     const map = {};
@@ -74,25 +82,28 @@ export default function BrowseRentals() {
           (x.location || '').toLowerCase().includes(q),
       );
     }
-    // sort
-    if (view === 'items') {
-      if (sort === 'price_asc') list.sort((a, b) => a.pricePerDay - b.pricePerDay);
-      else if (sort === 'price_desc') list.sort((a, b) => b.pricePerDay - a.pricePerDay);
+    // sort — items & packages share price sorts (items use pricePerDay,
+    // packages use price); businesses only sort by name/newest.
+    if (view === 'businesses') {
+      if (sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      const priceOf = (x) => (view === 'items' ? x.pricePerDay : x.price);
+      if (sort === 'price_asc') list.sort((a, b) => priceOf(a) - priceOf(b));
+      else if (sort === 'price_desc') list.sort((a, b) => priceOf(b) - priceOf(a));
       else if (sort === 'popular') list.sort((a, b) => (b.bookings || 0) - (a.bookings || 0));
+      else if (sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
       // newest = keep API order (already newest-first)
-    } else if (sort === 'name') {
-      list.sort((a, b) => a.name.localeCompare(b.name));
     }
     return list;
   }, [dataset, category, location, search, sort, view]);
 
-  const heading = category
-    ? `${category}${view === 'items' ? ' for rent' : ' businesses'}`
-    : view === 'items'
-      ? 'All rentals'
-      : 'All businesses';
+  const catSuffix =
+    view === 'items' ? ' for rent' : view === 'packages' ? ' packages' : ' businesses';
+  const allLabel =
+    view === 'items' ? 'All rentals' : view === 'packages' ? 'All packages' : 'All businesses';
+  const heading = category ? `${category}${catSuffix}` : allLabel;
 
-  const sorts = view === 'items' ? ITEM_SORTS : BIZ_SORTS;
+  const sorts = view === 'items' ? ITEM_SORTS : view === 'packages' ? PKG_SORTS : BIZ_SORTS;
 
   return (
     <div className="min-h-screen bg-white">
@@ -113,6 +124,7 @@ export default function BrowseRentals() {
           <div className="mt-6 inline-flex rounded-lg border border-slate-300 bg-white p-1">
             {[
               { k: 'items', label: 'Items' },
+              { k: 'packages', label: 'Packages' },
               { k: 'businesses', label: 'Businesses' },
             ].map((t) => (
               <button
@@ -133,7 +145,7 @@ export default function BrowseRentals() {
           <aside>
             <p className="mb-3 text-sm font-semibold text-slate-900">Categories</p>
             <ul className="space-y-1">
-              <FilterItem label={view === 'items' ? 'All rentals' : 'All businesses'} count={(dataset || []).length} active={!category} onClick={() => setCategory('')} />
+              <FilterItem label={allLabel} count={(dataset || []).length} active={!category} onClick={() => setCategory('')} />
               {CATEGORIES.map((c) => (
                 <FilterItem key={c.name} label={c.name} count={counts[c.name] || 0} active={category === c.name} onClick={() => setCategory(c.name)} />
               ))}
@@ -169,9 +181,9 @@ export default function BrowseRentals() {
                   </div>
                 ) : (
                   <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                    {view === 'items'
-                      ? filtered.map((p) => <ProductCard key={p.id} p={p} />)
-                      : filtered.map((b) => <BusinessCard key={b.id} b={b} />)}
+                    {view === 'items' && filtered.map((p) => <ProductCard key={p.id} p={p} />)}
+                    {view === 'packages' && filtered.map((p) => <PackageCard key={p.id} p={p} />)}
+                    {view === 'businesses' && filtered.map((b) => <BusinessCard key={b.id} b={b} />)}
                   </div>
                 )}
               </>
@@ -221,6 +233,47 @@ function ProductCard({ p }) {
         <p className="text-xs text-slate-500">{p.businessName}{p.location ? ` · ${p.location}` : ''}</p>
         <span className="mt-2 inline-block w-fit rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{p.category}</span>
         <p className="mt-auto pt-3 text-lg font-bold text-brand">{formatPrice(p.pricePerDay, p.currency)}<span className="text-sm font-normal text-slate-400">/day</span></p>
+      </div>
+    </Link>
+  );
+}
+
+function PackageCard({ p }) {
+  const unit = p.priceUnit === 'day' ? '/day' : '';
+  return (
+    <Link to={`/rentals/${p.businessId}`} className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-gradient-to-br from-brand/10 to-accent/20 px-4 py-3">
+        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand">
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+          Package
+        </span>
+        <span className="rounded-full bg-white/80 px-2.5 py-1 text-xs font-medium text-slate-600">{p.category}</span>
+      </div>
+      <div className="flex flex-1 flex-col p-4">
+        <h3 className="font-semibold text-slate-900">{p.name}</h3>
+        <p className="text-xs text-slate-500">{p.businessName}{p.location ? ` · ${p.location}` : ''}</p>
+        {p.description && <p className="mt-2 line-clamp-2 text-sm text-slate-600">{p.description}</p>}
+        {p.items?.length > 0 && (
+          <ul className="mt-3 space-y-1">
+            {p.items.slice(0, 3).map((it, i) => (
+              <li key={i} className="flex items-center gap-1.5 text-xs text-slate-600">
+                <svg className="h-3.5 w-3.5 shrink-0 text-accent" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                {it}
+              </li>
+            ))}
+            {p.items.length > 3 && (
+              <li className="text-xs text-slate-400">+{p.items.length - 3} more</li>
+            )}
+          </ul>
+        )}
+        <p className="mt-auto pt-3 text-lg font-bold text-brand">
+          {formatPrice(p.price, p.currency)}
+          <span className="text-sm font-normal text-slate-400">{unit}</span>
+        </p>
       </div>
     </Link>
   );

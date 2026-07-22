@@ -107,17 +107,33 @@ export function Pagination({ page, pageCount, onPage, perPage, onPerPage }) {
   const pages = windowPages(page, Math.max(1, pageCount));
   return (
     <div className="mt-4 flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-1 pt-4 sm:flex-row">
-      <p className="text-xs text-slate-500">
-        Page {page} of {pageCount || 1}
-      </p>
+      {onPerPage ? (
+        <label className="flex items-center gap-2 text-xs text-slate-500">
+          Items per page
+          <select
+            value={perPage}
+            onChange={(e) => onPerPage(Number(e.target.value))}
+            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-600 outline-none focus:border-accent"
+          >
+            {[5, 10, 15, 20].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <span />
+      )}
       <div className="flex items-center gap-1">
         <button
           type="button"
           disabled={page <= 1}
           onClick={() => onPage(page - 1)}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
+          className="flex h-8 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
         >
           <Chevron dir="left" />
+          Prev
         </button>
         {pages.map((p, i) =>
           p === '…' ? (
@@ -141,24 +157,15 @@ export function Pagination({ page, pageCount, onPage, perPage, onPerPage }) {
           type="button"
           disabled={page >= pageCount}
           onClick={() => onPage(page + 1)}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
+          className="flex h-8 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
         >
+          Next
           <Chevron dir="right" />
         </button>
       </div>
-      {onPerPage && (
-        <select
-          value={perPage}
-          onChange={(e) => onPerPage(Number(e.target.value))}
-          className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-600 outline-none focus:border-accent"
-        >
-          {[8, 15, 25, 50].map((n) => (
-            <option key={n} value={n}>
-              {n}/page
-            </option>
-          ))}
-        </select>
-      )}
+      <p className="text-xs text-slate-500">
+        Page {page} of {pageCount || 1}
+      </p>
     </div>
   );
 }

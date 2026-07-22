@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import AddBookingModal from '../../components/AddBookingModal';
 import BookingsTable from '../../components/BookingsTable';
 import { Pagination, SearchInput } from '../../components/table';
 import { ErrorNote, Loading, PageHeader } from '../../components/ui';
@@ -16,6 +17,7 @@ export default function OwnerBookingsView({
   baseFilter,
   statusOptions = [],
   showActions = true,
+  allowAdd = false,
   emptyLabel = 'bookings',
 }) {
   const [items, setItems] = useState(null);
@@ -23,7 +25,8 @@ export default function OwnerBookingsView({
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(8);
+  const [perPage, setPerPage] = useState(10);
+  const [adding, setAdding] = useState(false);
 
   const { subscribe } = useRealtime();
   const { isActive } = useOwnerPlan();
@@ -71,8 +74,36 @@ export default function OwnerBookingsView({
 
   return (
     <div>
-      <PageHeader title={title} subtitle={subtitle} />
+      <PageHeader
+        title={title}
+        subtitle={subtitle}
+        action={
+          allowAdd && (
+            <button
+              onClick={() => setAdding(true)}
+              disabled={!isActive}
+              title={!isActive ? 'Subscribe to a plan to add bookings' : undefined}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Add booking
+            </button>
+          )
+        }
+      />
       <ErrorNote>{error}</ErrorNote>
+
+      {adding && (
+        <AddBookingModal
+          onClose={() => setAdding(false)}
+          onCreated={() => {
+            setAdding(false);
+            load();
+          }}
+        />
+      )}
 
       <div className="rounded-2xl border border-slate-200 bg-white">
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">

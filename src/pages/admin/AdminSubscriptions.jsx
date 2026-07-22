@@ -13,7 +13,7 @@ export default function AdminSubscriptions() {
   const [query, setQuery] = useState('');
   const [plan, setPlan] = useState('all');
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(8);
+  const [perPage, setPerPage] = useState(10);
   const [busyId, setBusyId] = useState(null);
 
   const loadBusinesses = () => api.businesses.list().then(setBusinesses).catch((e) => setError(e.message));

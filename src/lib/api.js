@@ -106,6 +106,8 @@ export const api = {
     get: (id) => request(`/rentals/${id}`),
     products: (params = {}) => request(`/rentals/products${qs(params)}`),
     product: (id) => request(`/rentals/products/${id}`),
+    packages: (params = {}) => request(`/rentals/packages${qs(params)}`),
+    package: (id) => request(`/rentals/packages/${id}`),
   },
 
   // ── Products (owner / admin) ──────────────────────────
@@ -125,6 +127,14 @@ export const api = {
       if (!res.ok) throw new Error('Image upload failed');
       return res.json();
     },
+  },
+
+  // ── Packages (owner-defined bundles of offerings) ────
+  packages: {
+    listByBusiness: (businessId) => request(`/packages?businessId=${businessId}`),
+    create: (data) => request('/packages', { method: 'POST', body: data }),
+    update: (id, data) => request(`/packages/${id}`, { method: 'PATCH', body: data }),
+    remove: (id) => request(`/packages/${id}`, { method: 'DELETE' }),
   },
 
   // ── Bookings (a booking is either "book" or "reserve") ─

@@ -61,10 +61,6 @@ export default function OwnerSubscription() {
   const [busy, setBusy] = useState(false);
   const [billing, setBilling] = useState('monthly');
   const [checkout, setCheckout] = useState(false);
-  const [businesses, setBusinesses] = useState([]);
-  const [planBusy, setPlanBusy] = useState(null); // id being toggled
-
-  const loadBusinesses = () => api.businesses.list().then(setBusinesses).catch(() => {});
 
   useEffect(() => {
     api.subscription
@@ -75,21 +71,7 @@ export default function OwnerSubscription() {
         setBilling(s.effectivePlan === 'monthly' ? 'yearly' : 'monthly');
       })
       .catch((e) => setError(e.message));
-    loadBusinesses();
   }, []);
-
-  const setBusinessPlan = async (b, type) => {
-    setPlanBusy(b.id);
-    setError('');
-    try {
-      await api.businesses.update(b.id, { subscriptionType: type });
-      await loadBusinesses();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setPlanBusy(null);
-    }
-  };
 
   const run = async (fn) => {
     setBusy(true);
@@ -273,58 +255,19 @@ export default function OwnerSubscription() {
         />
       </div>
 
-      {/* Per-business marketplace listing control */}
-      <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-6">
-        <h3 className="text-base font-semibold text-slate-900">Marketplace listing</h3>
-        <p className="mt-1 text-sm text-slate-500">
-          Choose which of your businesses appear on the public RentFlow marketplace. Switching to
-          private keeps all your data — it just hides the business from customers.
+      {/* Per-business marketplace listing now lives on the My Businesses page. */}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-6">
+        <p className="text-sm text-slate-500">
+          Choose which of your businesses appear on the public RentFlow marketplace from the
+          My Businesses page. Switching to private keeps all your data — it just hides the business
+          from customers.
         </p>
-        {businesses.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-400">
-            No businesses yet.{' '}
-            <Link to="/owner/businesses" className="font-semibold text-accent hover:underline">
-              Add one first
-            </Link>
-            .
-          </p>
-        ) : (
-          <ul className="mt-4 divide-y divide-slate-100">
-            {businesses.map((b) => {
-              const isMkt = b.subscriptionType === 'marketplace';
-              return (
-                <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-medium text-slate-900">{b.name}</span>
-                    <Badge tone={isMkt ? 'green' : 'slate'}>{isMkt ? 'Marketplace' : 'Business'}</Badge>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {isMkt && (
-                      <Link
-                        to={`/owner/businesses/${b.id}/products`}
-                        className="text-xs font-semibold text-accent hover:underline"
-                      >
-                        Manage published products
-                      </Link>
-                    )}
-                    <button
-                      type="button"
-                      disabled={planBusy === b.id}
-                      onClick={() => setBusinessPlan(b, isMkt ? 'business' : 'marketplace')}
-                      className={`rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors disabled:opacity-60 ${
-                        isMkt
-                          ? 'border border-slate-300 text-slate-600 hover:bg-slate-50'
-                          : 'bg-accent text-white hover:bg-accent-dark'
-                      }`}
-                    >
-                      {planBusy === b.id ? 'Saving…' : isMkt ? 'Switch to private' : 'Enable Marketplace'}
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <Link
+          to="/owner/businesses"
+          className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-dark"
+        >
+          Manage marketplace listing
+        </Link>
       </div>
 
       {checkout && (

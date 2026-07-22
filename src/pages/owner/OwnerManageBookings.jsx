@@ -11,6 +11,7 @@ export default function OwnerManageBookings() {
       subtitle="Approve, complete, or cancel your active bookings."
       baseFilter={baseFilter}
       statusOptions={['all', 'pending', 'confirmed']}
+      allowAdd
       emptyLabel="active bookings"
     />
   );

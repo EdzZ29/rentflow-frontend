@@ -27,6 +27,7 @@ export default function OwnerBusinesses() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [planBusy, setPlanBusy] = useState(null); // id being toggled
   const { isActive } = useOwnerPlan();
 
   const load = () =>
@@ -68,6 +69,21 @@ export default function OwnerBusinesses() {
       await load();
     } catch (e) {
       setError(e.message);
+    }
+  };
+
+  // Toggle whether a business is publicly listed on the RentFlow marketplace.
+  // Switching to private keeps all data — it just hides it from customers.
+  const setBusinessPlan = async (b, type) => {
+    setPlanBusy(b.id);
+    setError('');
+    try {
+      await api.businesses.update(b.id, { subscriptionType: type });
+      await load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setPlanBusy(null);
     }
   };
 
@@ -176,9 +192,12 @@ export default function OwnerBusinesses() {
                     )}
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-semibold text-slate-900">{b.name}</h3>
                       <Badge tone={b.status === 'active' ? 'green' : 'amber'}>{b.status}</Badge>
+                      <Badge tone={b.subscriptionType === 'marketplace' ? 'blue' : 'slate'}>
+                        {b.subscriptionType === 'marketplace' ? 'Marketplace' : 'Private'}
+                      </Badge>
                     </div>
                     <p className="mt-1 text-sm text-slate-500">
                       {b.category}
@@ -194,7 +213,23 @@ export default function OwnerBusinesses() {
                   >
                     Manage products
                   </Link>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button
+                      onClick={() => setBusinessPlan(b, b.subscriptionType === 'marketplace' ? 'business' : 'marketplace')}
+                      disabled={!isActive || planBusy === b.id}
+                      title={!isActive ? 'Subscribe to manage marketplace listing' : undefined}
+                      className={`rounded-md px-2.5 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
+                        b.subscriptionType === 'marketplace'
+                          ? 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                          : 'bg-accent text-white hover:bg-accent-dark'
+                      }`}
+                    >
+                      {planBusy === b.id
+                        ? 'Saving…'
+                        : b.subscriptionType === 'marketplace'
+                          ? 'Switch to private'
+                          : 'List on Marketplace'}
+                    </button>
                     <button onClick={() => setEditing(b)} disabled={!isActive} title={!isActive ? 'Subscribe to edit' : undefined} className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Edit</button>
                     <button onClick={() => toggleStatus(b)} disabled={!isActive} title={!isActive ? 'Subscribe to manage' : undefined} className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
                       {b.status === 'active' ? 'Pause' : 'Activate'}
