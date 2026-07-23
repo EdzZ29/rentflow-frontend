@@ -294,6 +294,20 @@ function ProductDetailsModal({ product, isMarketplace, onClose }) {
           </div>
         )}
 
+        {product.rentalRules && (
+          <div>
+            <Dt>Rental rules</Dt>
+            <p className="mt-1 whitespace-pre-line text-sm text-slate-600">{product.rentalRules}</p>
+          </div>
+        )}
+
+        {product.cancellationPolicy && (
+          <div>
+            <Dt>Cancellation policy</Dt>
+            <p className="mt-1 whitespace-pre-line text-sm text-slate-600">{product.cancellationPolicy}</p>
+          </div>
+        )}
+
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-slate-50 p-4 text-sm">
           <Detail label="Currency" value={product.currency} />
           <Detail label="Daily rate" value={formatPrice(rate, product.currency)} />
@@ -351,6 +365,8 @@ function Detail({ label, value }) {
 const emptyForm = {
   name: '',
   description: '',
+  rentalRules: '',
+  cancellationPolicy: '',
   pricePerDay: '',
   currency: DEFAULT_CURRENCY,
   availability: 'available',
@@ -373,6 +389,8 @@ function CreateProductModal({ businessId, onClose, onSaved }) {
         businessId,
         name: form.name.trim(),
         description: form.description.trim() || undefined,
+        rentalRules: form.rentalRules.trim() || undefined,
+        cancellationPolicy: form.cancellationPolicy.trim() || undefined,
         pricePerDay: Number(form.pricePerDay) || 0,
         currency: form.currency,
         availability: form.availability,
@@ -405,6 +423,18 @@ function CreateProductModal({ businessId, onClose, onSaved }) {
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent focus:ring-2 focus:ring-accent/20" />
         </label>
         <label className="block">
+          <span className="mb-1 block text-sm font-medium text-slate-700">Rental rules</span>
+          <textarea name="rentalRules" value={form.rentalRules} onChange={onChange} rows={3} placeholder="e.g. Valid ID required. Return with a full tank. No smoking."
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent focus:ring-2 focus:ring-accent/20" />
+          <span className="mt-1 block text-xs text-slate-400">Shown to customers on the item page. Leave blank to use the standard rules.</span>
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-slate-700">Cancellation policy</span>
+          <textarea name="cancellationPolicy" value={form.cancellationPolicy} onChange={onChange} rows={2} placeholder="e.g. Free cancellation up to 48 hours before pickup."
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent focus:ring-2 focus:ring-accent/20" />
+          <span className="mt-1 block text-xs text-slate-400">Leave blank to use the standard policy.</span>
+        </label>
+        <label className="block">
           <span className="mb-1 block text-sm font-medium text-slate-700">Photo</span>
           <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-accent/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-accent-dark" />
@@ -424,6 +454,8 @@ function EditProductModal({ product, onClose, onSaved }) {
   const [form, setForm] = useState({
     name: product.name,
     description: product.description || '',
+    rentalRules: product.rentalRules || '',
+    cancellationPolicy: product.cancellationPolicy || '',
     pricePerDay: String(product.pricePerDay),
     currency: product.currency || DEFAULT_CURRENCY,
     availability: product.availability,
@@ -442,6 +474,8 @@ function EditProductModal({ product, onClose, onSaved }) {
       await api.products.update(product.id, {
         name: form.name.trim(),
         description: form.description.trim() || undefined,
+        rentalRules: form.rentalRules.trim() || undefined,
+        cancellationPolicy: form.cancellationPolicy.trim() || undefined,
         pricePerDay: Number(form.pricePerDay) || 0,
         currency: form.currency,
         availability: form.availability,
@@ -471,6 +505,16 @@ function EditProductModal({ product, onClose, onSaved }) {
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-slate-700">Description</span>
           <textarea name="description" value={form.description} onChange={onChange} rows={2}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent focus:ring-2 focus:ring-accent/20" />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-slate-700">Rental rules</span>
+          <textarea name="rentalRules" value={form.rentalRules} onChange={onChange} rows={3} placeholder="Leave blank to use the standard rules."
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent focus:ring-2 focus:ring-accent/20" />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-slate-700">Cancellation policy</span>
+          <textarea name="cancellationPolicy" value={form.cancellationPolicy} onChange={onChange} rows={2} placeholder="Leave blank to use the standard policy."
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent focus:ring-2 focus:ring-accent/20" />
         </label>
         <label className="block">

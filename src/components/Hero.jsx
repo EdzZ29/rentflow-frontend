@@ -110,10 +110,10 @@ export default function Hero() {
               Get started free
             </Link>
             <a
-              href="#services"
+              href="/rentals"
               className="rounded-lg border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 transition-colors hover:border-brand hover:text-brand"
             >
-              Explore services
+              Explore Rentals & Business
             </a>
           </div>
 

@@ -72,11 +72,13 @@ const categories = [
   },
 ];
 
+// Each nav item is its own route now (so they work from any page, not just the
+// landing page). Contact stays an in-page anchor — the Footer (#contact) is
+// rendered on every page.
 const rightLinks = [
-  { label: 'About', href: '#about' },
-  { label: 'Services', href: '#services' },
-  { label: 'Pricing', href: '#pricing' },
-  { label: 'Contact', href: '#contact' },
+  { label: 'About', to: '/about' },
+  { label: 'Services', to: '/services' },
+  { label: 'Pricing', to: '/pricing' },
 ];
 
 function Chevron({ className = '' }) {
@@ -103,19 +105,19 @@ export default function Header() {
     >
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
         {/* Logo + wordmark */}
-        <a href="#home" className="flex items-center gap-2.5" onMouseEnter={closeRent}>
+        <Link to="/" className="flex items-center gap-2.5" onMouseEnter={closeRent}>
           <Logo className="h-9 w-9" />
           <span className="text-2xl font-bold tracking-tight">
             <span className="text-brand">Rent</span>
             <span className="text-accent">Flow</span>
           </span>
-        </a>
+        </Link>
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-8 md:flex">
-          <a href="#home" className={linkClass} onMouseEnter={closeRent}>
+          <Link to="/" className={linkClass} onMouseEnter={closeRent}>
             Home
-          </a>
+          </Link>
 
           <button
             type="button"
@@ -127,11 +129,17 @@ export default function Header() {
             <Chevron className={`transition-transform ${rentOpen ? 'rotate-180' : ''}`} />
           </button>
 
-          {rightLinks.map((link) => (
-            <a key={link.label} href={link.href} className={linkClass} onMouseEnter={closeRent}>
-              {link.label}
-            </a>
-          ))}
+          {rightLinks.map((link) =>
+            link.to ? (
+              <Link key={link.label} to={link.to} className={linkClass} onMouseEnter={closeRent}>
+                {link.label}
+              </Link>
+            ) : (
+              <a key={link.label} href={link.href} className={linkClass} onMouseEnter={closeRent}>
+                {link.label}
+              </a>
+            ),
+          )}
         </nav>
 
         {/* Desktop actions */}
@@ -227,9 +235,9 @@ export default function Header() {
                 <Link to="/signup" className="flex items-center gap-1 text-sm font-medium text-accent-dark hover:text-accent" onClick={closeRent}>
                   List your items <Chevron className="-rotate-90" />
                 </Link>
-                <a href="#services" className="flex items-center gap-1 text-sm font-medium text-accent-dark hover:text-accent" onClick={closeRent}>
+                <Link to="/services" className="flex items-center gap-1 text-sm font-medium text-accent-dark hover:text-accent" onClick={closeRent}>
                   How it works <Chevron className="-rotate-90" />
-                </a>
+                </Link>
               </div>
             </div>
           </div>
@@ -240,22 +248,33 @@ export default function Header() {
       {open && (
         <div className="border-t border-slate-100 bg-white md:hidden">
           <nav className="mx-auto flex max-w-7xl flex-col px-6 py-4">
-            <a href="#home" onClick={() => setOpen(false)} className="py-2 text-sm font-medium text-slate-700 hover:text-accent">
+            <Link to="/" onClick={() => setOpen(false)} className="py-2 text-sm font-medium text-slate-700 hover:text-accent">
               Home
-            </a>
+            </Link>
             <Link to="/rentals" onClick={() => setOpen(false)} className="py-2 text-sm font-medium text-slate-700 hover:text-accent">
               Find a rent
             </Link>
-            {rightLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                onClick={() => setOpen(false)}
-                className="py-2 text-sm font-medium text-slate-700 hover:text-accent"
-              >
-                {link.label}
-              </a>
-            ))}
+            {rightLinks.map((link) =>
+              link.to ? (
+                <Link
+                  key={link.label}
+                  to={link.to}
+                  onClick={() => setOpen(false)}
+                  className="py-2 text-sm font-medium text-slate-700 hover:text-accent"
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setOpen(false)}
+                  className="py-2 text-sm font-medium text-slate-700 hover:text-accent"
+                >
+                  {link.label}
+                </a>
+              ),
+            )}
             <div className="mt-3 flex items-center gap-3 border-t border-slate-100 pt-4">
               <Link to="/login" className="flex-1 rounded-lg border border-slate-200 px-5 py-2.5 text-center text-sm font-medium text-slate-700 hover:border-brand hover:text-brand">
                 Login

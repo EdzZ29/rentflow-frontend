@@ -1,18 +1,35 @@
+import { Link } from 'react-router-dom';
 import Logo from './Logo';
 import StoreBadges from './StoreBadges';
 
+// `to` → internal route, `href` → in-page anchor, otherwise a placeholder.
 const columns = [
   {
     title: 'Product',
-    links: ['Find a Rent', 'Services', 'Pricing', 'Integrations'],
+    links: [
+      { label: 'Find a Rent', to: '/rentals' },
+      { label: 'Services', to: '/services' },
+      { label: 'Pricing', to: '/pricing' },
+      { label: 'Integrations' },
+    ],
   },
   {
     title: 'Company',
-    links: ['About Us', 'Careers', 'Blog', 'Contact'],
+    links: [
+      { label: 'About Us', to: '/about' },
+      { label: 'Careers' },
+      { label: 'Blog' },
+      { label: 'Contact', href: '#contact' },
+    ],
   },
   {
     title: 'Support',
-    links: ['Help Center', 'Documentation', 'Status', 'Privacy'],
+    links: [
+      { label: 'Help Center' },
+      { label: 'Documentation' },
+      { label: 'Status' },
+      { label: 'Privacy' },
+    ],
   },
 ];
 
@@ -23,13 +40,13 @@ export default function Footer() {
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <a href="#home" className="flex items-center gap-2.5">
+            <Link to="/" className="flex items-center gap-2.5">
               <Logo className="h-9 w-9" />
               <span className="text-2xl font-bold tracking-tight">
                 <span className="text-brand">Rent</span>
                 <span className="text-accent">Flow</span>
               </span>
-            </a>
+            </Link>
             <p className="mt-4 max-w-sm text-sm text-slate-600">
               Modern rental management for businesses of every kind. List,
               book, track, and grow — all in one place.
@@ -51,10 +68,16 @@ export default function Footer() {
               <h4 className="text-sm font-semibold text-slate-900">{col.title}</h4>
               <ul className="mt-4 space-y-3">
                 {col.links.map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-sm text-slate-600 transition-colors hover:text-accent">
-                      {link}
-                    </a>
+                  <li key={link.label}>
+                    {link.to ? (
+                      <Link to={link.to} className="text-sm text-slate-600 transition-colors hover:text-accent">
+                        {link.label}
+                      </Link>
+                    ) : (
+                      <a href={link.href || '#'} className="text-sm text-slate-600 transition-colors hover:text-accent">
+                        {link.label}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>

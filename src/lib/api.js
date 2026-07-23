@@ -119,8 +119,27 @@ export const api = {
     get: (id) => request(`/rentals/${id}`),
     products: (params = {}) => request(`/rentals/products${qs(params)}`),
     product: (id) => request(`/rentals/products/${id}`),
+    // Other products from the same business as the given product.
+    related: (id) => request(`/rentals/products/${id}/related`),
     packages: (params = {}) => request(`/rentals/packages${qs(params)}`),
     package: (id) => request(`/rentals/packages/${id}`),
+  },
+
+  // ── Product reviews (public read, customer write) ─────
+  reviews: {
+    list: (productId) => request(`/rentals/products/${productId}/reviews`),
+    create: (productId, data) =>
+      request(`/rentals/products/${productId}/reviews`, { method: 'POST', body: data }),
+    // The signed-in customer's own reviews (keyed by product).
+    mine: () => request('/reviews/mine'),
+  },
+
+  // ── Owner reviews (analytics feed + reply management) ─
+  ownerReviews: {
+    list: () => request('/owner/reviews'),
+    reply: (id, reply) =>
+      request(`/owner/reviews/${id}/reply`, { method: 'POST', body: { reply } }),
+    deleteReply: (id) => request(`/owner/reviews/${id}/reply`, { method: 'DELETE' }),
   },
 
   // ── Products (owner / admin) ──────────────────────────
@@ -165,6 +184,17 @@ export const api = {
     list: () => request('/reservations'),
     updateStatus: (id, status) =>
       request(`/reservations/${id}`, { method: 'PATCH', body: { status } }),
+  },
+
+  // ── Support tickets (customer/owner ↔ admin chat) ────
+  support: {
+    list: () => request('/support/tickets'),
+    get: (id) => request(`/support/tickets/${id}`),
+    create: (data) => request('/support/tickets', { method: 'POST', body: data }),
+    sendMessage: (id, body) =>
+      request(`/support/tickets/${id}/messages`, { method: 'POST', body: { body } }),
+    updateStatus: (id, status) =>
+      request(`/support/tickets/${id}`, { method: 'PATCH', body: { status } }),
   },
 
   // ── Notifications ─────────────────────────────────────

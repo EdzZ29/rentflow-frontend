@@ -9,10 +9,17 @@ const statusTone = { pending: 'amber', confirmed: 'green', cancelled: 'red', com
 
 export default function CustomerOverview() {
   const [items, setItems] = useState(null);
+  const [reviewed, setReviewed] = useState(new Set());
   const [error, setError] = useState('');
   const { subscribe } = useRealtime();
 
-  const load = () => api.bookings.list().then(setItems).catch((e) => setError(e.message));
+  const load = () =>
+    Promise.all([api.bookings.list(), api.reviews.mine().catch(() => [])])
+      .then(([bookings, mine]) => {
+        setItems(bookings);
+        setReviewed(new Set(mine.map((r) => r.productId)));
+      })
+      .catch((e) => setError(e.message));
 
   useEffect(() => {
     load();
@@ -27,6 +34,15 @@ export default function CustomerOverview() {
   const pending = items.filter((r) => r.status === 'pending').length;
   const confirmed = items.filter((r) => r.status === 'confirmed').length;
 
+  // Distinct rented (non-cancelled) products not yet reviewed.
+  const toReview = [
+    ...new Set(
+      items
+        .filter((r) => r.status !== 'cancelled' && r.productId)
+        .map((r) => r.productId),
+    ),
+  ].filter((pid) => !reviewed.has(pid)).length;
+
   return (
     <div>
       <PageHeader
@@ -39,11 +55,23 @@ export default function CustomerOverview() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-4">
         <StatCard label="Total bookings" value={items.length} />
         <StatCard label="Awaiting confirmation" value={pending} tone="accent" />
         <StatCard label="Confirmed" value={confirmed} />
+        <StatCard label="To review" value={toReview} tone={toReview > 0 ? 'accent' : undefined} />
       </div>
+
+      {toReview > 0 && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3">
+          <p className="text-sm text-slate-700">
+            You have <strong>{toReview}</strong> rented item{toReview === 1 ? '' : 's'} waiting for a review.
+          </p>
+          <Link to="/customer/reviews" className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-dark">
+            Write reviews
+          </Link>
+        </div>
+      )}
 
       <Card title="Recent bookings" className="mt-6">
         {items.length === 0 ? (

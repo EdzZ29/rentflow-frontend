@@ -15,6 +15,7 @@ export default function Landing() {
         <About />
         <Features />
         <Pricing />
+ 
         <CTA />
       </main>
       <Footer />
