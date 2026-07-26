@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { homePathForRole, useAuth } from '../context/AuthContext';
 import { assetUrl } from '../lib/api';
+import { LogoutIcon, SettingsIcon } from './icons';
 import Logo from './Logo';
+import Modal from './Modal';
 import NotificationBell from './NotificationBell';
 
 const linkClass = ({ isActive }) =>
@@ -66,10 +68,24 @@ export default function DashboardLayout({ nav, roleLabel, banner }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  // Log out is confirmed through a modal so it can't be hit by accident.
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
   const onLogout = async () => {
-    await logout();
-    navigate('/login');
+    setLoggingOut(true);
+    try {
+      await logout();
+      navigate('/login');
+    } finally {
+      setLoggingOut(false);
+      setConfirmLogout(false);
+    }
   };
+
+  // Settings lives under each role's dashboard, e.g. /owner/settings.
+  const roleHome = homePathForRole(user?.role);
+  const settingsPath = roleHome === '/' ? '/' : `${roleHome}/settings`;
 
   const displayName = user?.fullName || user?.email || 'Account';
   const initial = displayName.trim().charAt(0).toUpperCase() || '?';
@@ -106,16 +122,10 @@ export default function DashboardLayout({ nav, roleLabel, banner }) {
         </nav>
 
         <div className="border-t border-slate-100 p-4">
-          <div className="mb-3 px-2">
+          <div className="px-2">
             <p className="truncate text-sm font-medium text-slate-900">{user?.email}</p>
             <p className="text-xs capitalize text-slate-500">{user?.role}</p>
           </div>
-          <button
-            onClick={onLogout}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
-          >
-            Log out
-          </button>
         </div>
       </aside>
 
@@ -133,8 +143,29 @@ export default function DashboardLayout({ nav, roleLabel, banner }) {
             />
           </div>
           <div className="flex items-center gap-3">
-            <NotificationBell />
-            <div className="flex items-center gap-2.5">
+            {/* Actions: notifications, settings, log out */}
+            <div className="flex items-center gap-1">
+              <NotificationBell />
+              <Link
+                to={settingsPath}
+                title="Settings"
+                aria-label="Settings"
+                className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-brand"
+              >
+                <SettingsIcon className="h-5 w-5" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => setConfirmLogout(true)}
+                title="Log out"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-red-600"
+              >
+                <LogoutIcon className="h-5 w-5" />
+                Logout
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2.5 border-l border-slate-200 pl-3">
               {avatar ? (
                 <img src={avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
               ) : (
@@ -156,13 +187,22 @@ export default function DashboardLayout({ nav, roleLabel, banner }) {
             <span className="font-logo text-lg ">
               <span className="text-accent">rentivo</span>
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <NotificationBell />
-              <button
-                onClick={onLogout}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600"
+              <Link
+                to={settingsPath}
+                aria-label="Settings"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-brand"
               >
-                Log out
+                <SettingsIcon className="h-5 w-5" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => setConfirmLogout(true)}
+                aria-label="Log out"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-red-600"
+              >
+                <LogoutIcon className="h-5 w-5" />
               </button>
             </div>
           </div>
@@ -189,6 +229,32 @@ export default function DashboardLayout({ nav, roleLabel, banner }) {
           <Outlet />
         </main>
       </div>
+
+      {confirmLogout && (
+        <Modal title="Log out" onClose={() => !loggingOut && setConfirmLogout(false)}>
+          <p className="text-sm text-slate-600">
+            Are you sure you want to log out?
+          </p>
+          <div className="mt-6 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setConfirmLogout(false)}
+              disabled={loggingOut}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onLogout}
+              disabled={loggingOut}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+            >
+              {loggingOut ? 'Logging out…' : 'Log out'}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -84,6 +84,11 @@ export default function RentalDetail() {
             </aside>
           </div>
 
+          {/* Overall rating — aggregated from this business's item reviews.
+              The business itself is never reviewed directly; reviews live on
+              each item's page. */}
+          <OverallRating b={b} />
+
           {/* Items offered by this business */}
           <div className="mt-12">
             <h2 className="text-xl font-bold tracking-tight text-slate-900">Items from {b.name}</h2>
@@ -99,6 +104,66 @@ export default function RentalDetail() {
         )}
       </section>
       <Footer />
+    </div>
+  );
+}
+
+// The business's overall rating: the average across every review left on its
+// items, with a per-star breakdown. Deliberately shows no review text — those
+// belong to the individual item that was reviewed.
+function OverallRating({ b }) {
+  const total = b.reviewCount || 0;
+  const stars = b.ratingBreakdown || {};
+
+  return (
+    <div className="mt-12">
+      <h2 className="text-xl font-bold tracking-tight text-slate-900">Overall rating</h2>
+      <p className="mt-1 text-sm text-slate-500">
+        Combined from reviews on this business’s items.
+      </p>
+
+      {total === 0 ? (
+        <p className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+          No reviews yet. Reviews appear here once customers rate this business’s items.
+        </p>
+      ) : (
+        <div className="mt-5 grid gap-8 rounded-2xl border border-slate-200 p-6 sm:grid-cols-[auto_1fr] sm:gap-12">
+          <div className="text-center sm:text-left">
+            <p className="text-5xl font-bold tracking-tight text-slate-900">
+              {b.rating.toFixed(1)}
+            </p>
+            <div className="mt-2 flex justify-center sm:justify-start">
+              <StarRating value={b.rating} count={total} showCount={false} showValue={false} size="h-5 w-5" />
+            </div>
+            <p className="mt-2 text-sm text-slate-500">
+              {total} {total === 1 ? 'review' : 'reviews'}
+              {b.ratedItemCount > 0 && (
+                <> across {b.ratedItemCount} {b.ratedItemCount === 1 ? 'item' : 'items'}</>
+              )}
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            {[5, 4, 3, 2, 1].map((n) => {
+              const count = stars[n] || 0;
+              const pct = total ? Math.round((count / total) * 100) : 0;
+              return (
+                <div key={n} className="flex items-center gap-3 text-xs">
+                  <span className="w-6 shrink-0 text-slate-500">{n}★</span>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-8 shrink-0 text-right text-slate-400">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <p className="mt-3 text-xs text-slate-400">
+        Looking for what people said? Open an item below — each item has its own reviews.
+      </p>
     </div>
   );
 }

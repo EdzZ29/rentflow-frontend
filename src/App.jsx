@@ -21,6 +21,7 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import PricingPage from './pages/PricingPage';
 import ServicesPage from './pages/ServicesPage';
+import Settings from './pages/Settings';
 import OAuthCallback from './pages/OAuthCallback';
 import ResetPassword from './pages/ResetPassword';
 import BrowseRentals from './pages/rentals/BrowseRentals';
@@ -79,6 +80,7 @@ function App() {
             <Route path="bookings" element={<CustomerBookings />} />
             <Route path="reviews" element={<CustomerReviews />} />
             <Route path="support" element={<SupportView />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
 
           {/* Admin */}
@@ -96,6 +98,7 @@ function App() {
             <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="bookings" element={<AdminBookings />} />
             <Route path="support" element={<SupportView admin />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
 
           {/* Owner */}
@@ -120,6 +123,7 @@ function App() {
             <Route path="subscription" element={<OwnerSubscription />} />
             <Route path="support" element={<SupportView />} />
             <Route path="profile" element={<OwnerProfile />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
         <SpeedInsights />

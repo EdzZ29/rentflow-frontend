@@ -91,7 +91,7 @@ export default function SupportView({ admin = false }) {
     <div>
       <PageHeader
         title={admin ? 'Support Inbox' : 'Support'}
-        subtitle={admin ? 'Respond to customer and owner tickets.' : 'Questions, reports, or requests — chat with our team.'}
+        subtitle={admin ? 'Respond to customer and owner tickets.' : 'Questions, reports, or requests chat with our team.'}
         action={
           !admin ? (
             <button onClick={startNew} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-dark">
