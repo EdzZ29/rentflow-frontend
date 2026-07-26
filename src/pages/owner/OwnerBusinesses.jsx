@@ -72,7 +72,7 @@ export default function OwnerBusinesses() {
     }
   };
 
-  // Toggle whether a business is publicly listed on the RentFlow marketplace.
+  // Toggle whether a business is publicly listed on the Rentivo marketplace.
   // Switching to private keeps all data — it just hides it from customers.
   const setBusinessPlan = async (b, type) => {
     setPlanBusy(b.id);

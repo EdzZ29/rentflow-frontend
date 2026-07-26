@@ -84,9 +84,8 @@ export default function DashboardLayout({ nav, roleLabel, banner }) {
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-slate-100 px-6">
           <Logo className="h-8 w-8" />
-          <span className="text-xl font-bold tracking-tight">
-            <span className="text-brand">Rent</span>
-            <span className="text-accent">Flow</span>
+          <span className="font-logo text-xl ">
+            <span className="text-accent">rentivo</span>
           </span>
         </div>
 
@@ -154,9 +153,8 @@ export default function DashboardLayout({ nav, roleLabel, banner }) {
         {/* Top bar (mobile nav + logout) */}
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur lg:hidden">
           <div className="flex items-center justify-between">
-            <span className="text-lg font-bold tracking-tight">
-              <span className="text-brand">Rent</span>
-              <span className="text-accent">Flow</span>
+            <span className="font-logo text-lg ">
+              <span className="text-accent">rentivo</span>
             </span>
             <div className="flex items-center gap-2">
               <NotificationBell />

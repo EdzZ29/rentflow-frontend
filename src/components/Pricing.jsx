@@ -5,7 +5,7 @@ const plans = [
     name: 'Free Trial',
     price: '$0',
     period: 'for 7 days',
-    description: 'Explore everything RentFlow offers no credit card required.',
+    description: 'Explore everything Rentivo offers no credit card required.',
     cta: 'Start free trial',
     highlighted: false,
     features: [

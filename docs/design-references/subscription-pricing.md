@@ -1,8 +1,8 @@
 # Subscription / Pricing — Design Reference
 
-Reference design captured for the RentFlow subscription & pricing UI.
+Reference design captured for the Rentivo subscription & pricing UI.
 Source: Kimi Membership pricing page (2026-07-22). Use as a visual/layout
-reference — **not** a copy target. Adapt to RentFlow's brand tokens
+reference — **not** a copy target. Adapt to Rentivo's brand tokens
 (`brand`, `accent`, slate scale) and plan model.
 
 Related code: [OwnerSubscription.jsx](../../src/pages/owner/OwnerSubscription.jsx),
@@ -15,7 +15,7 @@ Related code: [OwnerSubscription.jsx](../../src/pages/owner/OwnerSubscription.js
 Dark, premium, "concept-themed" pricing page. Everything is themed around a
 **music motif** (plan names are tempo markings — Moderato, Allegretto, Allegro,
 Vivace; treble-clef and sheet-music decorations; "Your Plan Plays From Here").
-The takeaway for RentFlow isn't the music theme itself — it's the **structure
+The takeaway for Rentivo isn't the music theme itself — it's the **structure
 and hierarchy** of a well-organized multi-tier pricing page.
 
 ## Structure (top → bottom)
@@ -81,12 +81,12 @@ and hierarchy** of a well-organized multi-tier pricing page.
 - **Buttons:** full-width in cards; state clearly communicated (disabled
   "Sold out" reads muted).
 
-## What to borrow for RentFlow
+## What to borrow for Rentivo
 
-- The **billing toggle + savings badge** pattern (RentFlow already has
+- The **billing toggle + savings badge** pattern (Rentivo already has
   monthly/yearly — the annual-savings badge and struck-through price framing
   would strengthen it).
-- The **multi-tier card ladder** if RentFlow expands beyond monthly/yearly, or
+- The **multi-tier card ladder** if Rentivo expands beyond monthly/yearly, or
   to present Business vs Marketplace tiers more visually.
 - The **feature comparison table** with value/check/× cells — much clearer than
   a flat feature list for comparing plans.
@@ -95,7 +95,7 @@ and hierarchy** of a well-organized multi-tier pricing page.
 
 ## What NOT to copy
 
-- The literal music theme and tempo-marking plan names — off-brand for RentFlow.
+- The literal music theme and tempo-marking plan names — off-brand for Rentivo.
 - "Sold out" button states (specific to a launch drop).
-- Dark theme is optional — RentFlow currently uses a light slate/white theme;
+- Dark theme is optional — Rentivo currently uses a light slate/white theme;
   keep whichever the app standardizes on.

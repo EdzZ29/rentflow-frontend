@@ -1,5 +1,5 @@
 // Reusable dashboard widgets shared by the owner and admin overviews.
-// Colours come straight from the RentFlow brand palette so every chart,
+// Colours come straight from the Rentivo brand palette so every chart,
 // tile, and badge reads as one system.
 const C = {
   brand: '#135776',

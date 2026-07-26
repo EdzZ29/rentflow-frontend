@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
 import { AuthProvider } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { RealtimeProvider } from './context/RealtimeContext';
 import AdminBookings from './pages/admin/AdminBookings';
 import AdminClients from './pages/admin/AdminClients';
@@ -45,6 +46,7 @@ import { Analytics } from '@vercel/analytics/react';
 
 function App() {
   return (
+    <LanguageProvider>
     <AuthProvider>
       <RealtimeProvider>
       <BrowserRouter>
@@ -125,6 +127,7 @@ function App() {
       </BrowserRouter>
       </RealtimeProvider>
     </AuthProvider>
+    </LanguageProvider>
   );
 }
 

@@ -46,7 +46,7 @@ export default function Login() {
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">
           Welcome back
         </h1>
-        <p className="mt-2 text-slate-500">Log in to your RentFlow account.</p>
+        <p className="mt-2 text-slate-500">Log in to your Rentivo account.</p>
 
         <form onSubmit={onSubmit} className="mt-8 space-y-4">
           {error && (

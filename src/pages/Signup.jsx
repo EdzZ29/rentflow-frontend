@@ -406,7 +406,7 @@ export default function Signup() {
 function RoleStep({ onPick }) {
   return (
     <div className="text-center">
-      <h1 className="text-3xl font-bold tracking-tight text-slate-900">Welcome to RentFlow</h1>
+      <h1 className="text-3xl font-bold tracking-tight text-slate-900">Welcome to Rentivo</h1>
       <p className="mt-2 text-slate-500">Which describes you best?</p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         {roles.map((r) => (

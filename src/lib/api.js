@@ -1,4 +1,4 @@
-// Tiny RentFlow API client for the web app.
+// Tiny Rentivo API client for the web app.
 //
 // Auth uses an httpOnly cookie set by the API — the token is never stored in
 // JavaScript-accessible storage, so XSS can't steal it. Every request sends

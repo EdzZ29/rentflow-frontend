@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import LanguageSelect from './LanguageSelect';
 import Logo from './Logo';
 
 // Rental categories shown in the "Find a rent" mega menu.
@@ -107,9 +108,8 @@ export default function Header() {
         {/* Logo + wordmark */}
         <Link to="/" className="flex items-center gap-2.5" onMouseEnter={closeRent}>
           <Logo className="h-9 w-9" />
-          <span className="text-2xl font-bold tracking-tight">
-            <span className="text-brand">Rent</span>
-            <span className="text-accent">Flow</span>
+          <span className="font-logo text-2xl ">
+            <span className="text-accent">rentivo</span>
           </span>
         </Link>
 
@@ -144,6 +144,7 @@ export default function Header() {
 
         {/* Desktop actions */}
         <div className="hidden items-center gap-3 md:flex" onMouseEnter={closeRent}>
+          <LanguageSelect />
           <Link to="/login" className="text-sm font-medium text-slate-700 transition-colors hover:text-brand">
             Login
           </Link>
@@ -275,7 +276,11 @@ export default function Header() {
                 </a>
               ),
             )}
-            <div className="mt-3 flex items-center gap-3 border-t border-slate-100 pt-4">
+            <div className="mt-3 border-t border-slate-100 pt-4">
+              <LanguageSelect full />
+            </div>
+
+            <div className="mt-3 flex items-center gap-3">
               <Link to="/login" className="flex-1 rounded-lg border border-slate-200 px-5 py-2.5 text-center text-sm font-medium text-slate-700 hover:border-brand hover:text-brand">
                 Login
               </Link>

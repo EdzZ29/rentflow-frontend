@@ -24,13 +24,13 @@ export default function About() {
         {/* Intro */}
         <div className="mx-auto max-w-3xl text-center">
           <span className="text-sm font-semibold uppercase tracking-wider text-accent">
-            About RentFlow
+            About Rentivo
           </span>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
             One platform for every rental business
           </h2>
           <p className="mt-5 text-lg leading-relaxed text-slate-600">
-            RentFlow is a cloud-based rental management platform that helps
+            Rentivo is a cloud-based rental management platform that helps
             businesses digitize their daily operations. Instead of spreadsheets,
             phone calls, and paper records, it automates reservations, inventory
             tracking, customers, payments, and maintenance all from one secure

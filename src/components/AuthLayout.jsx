@@ -16,9 +16,8 @@ export default function AuthLayout({ children }) {
       <div className="flex flex-col px-6 py-8 sm:px-10">
         <Link to="/" className="flex items-center gap-2.5">
           <Logo className="h-9 w-9" />
-          <span className="text-2xl font-bold tracking-tight">
-            <span className="text-brand">Rent</span>
-            <span className="text-accent">Flow</span>
+          <span className="font-logo text-2xl ">
+            <span className="text-accent">rentivo</span>
           </span>
         </Link>
 
@@ -40,7 +39,7 @@ export default function AuthLayout({ children }) {
             Run your entire rental business in one place.
           </h2>
           <p className="mt-4 text-lg text-white/85">
-            Join hundreds of rental businesses using RentFlow to manage
+            Join hundreds of rental businesses using Rentivo to manage
             inventory, bookings, and customers.
           </p>
 

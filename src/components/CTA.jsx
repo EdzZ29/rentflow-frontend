@@ -8,7 +8,7 @@ export default function CTA() {
           Ready to grow your rental business?
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-lg text-white/85">
-          Join hundreds of businesses who trust RentFlow to manage their
+          Join hundreds of businesses who trust Rentivo to manage their
           inventory, bookings, and customers with ease.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">

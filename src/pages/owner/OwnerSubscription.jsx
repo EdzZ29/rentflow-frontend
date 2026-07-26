@@ -32,7 +32,7 @@ const INCLUDED = [
   { title: 'Priority support', desc: 'Faster help whenever you need it' },
 ];
 
-// The two RentFlow business plans (separate from billing period above).
+// The two Rentivo business plans (separate from billing period above).
 const BUSINESS_FEATURES = [
   'Dashboard',
   'Booking & reservation management',
@@ -258,7 +258,7 @@ export default function OwnerSubscription() {
       {/* Per-business marketplace listing now lives on the My Businesses page. */}
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-6">
         <p className="text-sm text-slate-500">
-          Choose which of your businesses appear on the public RentFlow marketplace from the
+          Choose which of your businesses appear on the public Rentivo marketplace from the
           My Businesses page. Switching to private keeps all your data — it just hides the business
           from customers.
         </p>

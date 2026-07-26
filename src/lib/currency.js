@@ -1,4 +1,4 @@
-// Supported currencies. PHP (₱) is the default across RentFlow.
+// Supported currencies. PHP (₱) is the default across Rentivo.
 export const CURRENCIES = [
   { code: 'PHP', symbol: '₱', label: 'Philippine Peso (₱)' },
   { code: 'USD', symbol: '$', label: 'US Dollar ($)' },
