@@ -44,7 +44,9 @@ export default function BrowseRentals() {
   const [search, setSearch] = useState(params.get('q') || '');
   const [location, setLocation] = useState('');
   const [sort, setSort] = useState('popular');
-  const [error, setError] = useState('');
+  // A failed fetch is treated as "nothing to show" rather than surfacing an
+  // error banner — the storefront should never look broken to a shopper.
+  const [failed, setFailed] = useState(false);
   // Card display mode — remembered across visits.
   const [layout, setLayout] = useState(() => {
     const saved = typeof localStorage !== 'undefined' && localStorage.getItem('rentals.layout');
@@ -71,7 +73,12 @@ export default function BrowseRentals() {
         setPackages(pkg);
         setBusinesses(b);
       })
-      .catch((e) => setError(e.message));
+      .catch(() => {
+        setFailed(true);
+        setProducts([]);
+        setPackages([]);
+        setBusinesses([]);
+      });
   }, []);
 
   const setCategory = (name) => {
@@ -215,15 +222,16 @@ export default function BrowseRentals() {
               </div>
             </div>
 
-            {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-            {!dataset && !error && <p className="py-12 text-center text-sm text-slate-400">Loading…</p>}
+            {!dataset && <CardSkeletons cols={activeLayout.cols} />}
             {dataset && (
               <>
-                <p className="mb-4 text-sm text-slate-500">{filtered.length} result{filtered.length === 1 ? '' : 's'}</p>
+                {filtered.length > 0 && (
+                  <p className="mb-4 text-sm text-slate-500">{filtered.length} result{filtered.length === 1 ? '' : 's'}</p>
+                )}
                 {filtered.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 py-16 text-center text-slate-500">
-                    Nothing found. Try different filters.
-                  </div>
+                  <EmptyState
+                    message={failed ? 'No rentals to show right now.' : 'Nothing found. Try different filters.'}
+                  />
                 ) : (
                   <div className={`grid gap-5 ${activeLayout.cols} transition-opacity duration-150 ${fading ? 'opacity-0' : 'opacity-100'}`}>
                     {view === 'items' && filtered.map((p) => <ProductCard key={p.id} p={p} layout={layout} />)}
@@ -238,6 +246,37 @@ export default function BrowseRentals() {
       </section>
 
       <Footer />
+    </div>
+  );
+}
+
+// Placeholder cards shown while the listings load, so the layout doesn't jump.
+function CardSkeletons({ cols, count = 6 }) {
+  return (
+    <div className={`grid gap-5 ${cols}`} aria-hidden="true">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="h-40 animate-pulse bg-slate-100" />
+          <div className="space-y-2.5 p-4">
+            <div className="h-4 w-3/4 animate-pulse rounded bg-slate-100" />
+            <div className="h-3 w-1/2 animate-pulse rounded bg-slate-100" />
+            <div className="h-4 w-1/3 animate-pulse rounded bg-slate-100" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Neutral "nothing here" state — used both for filters that match nothing and
+// for a listings request that didn't come back.
+function EmptyState({ message }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <svg className="h-12 w-12 text-slate-300" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+      <p className="mt-4 text-sm text-slate-500">{message}</p>
     </div>
   );
 }

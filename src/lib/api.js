@@ -179,6 +179,34 @@ export const api = {
     updateStatus: (id, status) =>
       request(`/reservations/${id}`, { method: 'PATCH', body: { status } }),
   },
+  // Booking requirement documents + handover QR validation.
+  bookingDocs: {
+    // kind: 'validId' | 'licenseId'
+    upload: async (reservationId, kind, file) => {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await fetch(
+        `${API_URL}/reservations/${reservationId}/documents?kind=${kind}`,
+        { method: 'POST', credentials: 'include', body: fd },
+      );
+      if (!res.ok) throw new Error('Document upload failed');
+      return res.json();
+    },
+  },
+  // Public read of the booking behind a QR code, plus the owner's scan action.
+  // Whether a scan releases the unit or closes out its return is decided by
+  // which code was scanned — the client doesn't choose.
+  bookingVerify: {
+    get: (token) => request(`/reservations/verify/${token}`),
+    scan: (token) =>
+      request(`/reservations/verify/${token}/scan`, { method: 'POST' }),
+  },
+  // Manual equivalents, for when the renter can't show a code.
+  handover: {
+    release: (id) => request(`/reservations/${id}/release`, { method: 'POST' }),
+    markReturned: (id) => request(`/reservations/${id}/return`, { method: 'POST' }),
+  },
+
   // Alias kept for the owner-side "manage" views.
   reservations: {
     list: () => request('/reservations'),

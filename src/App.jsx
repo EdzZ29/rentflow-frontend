@@ -22,6 +22,7 @@ import Login from './pages/Login';
 import PricingPage from './pages/PricingPage';
 import ServicesPage from './pages/ServicesPage';
 import Settings from './pages/Settings';
+import VerifyBooking from './pages/VerifyBooking';
 import OAuthCallback from './pages/OAuthCallback';
 import ResetPassword from './pages/ResetPassword';
 import BrowseRentals from './pages/rentals/BrowseRentals';
@@ -62,6 +63,8 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/oauth/callback" element={<OAuthCallback />} />
+          {/* Opened by scanning a booking QR code. */}
+          <Route path="/verify/:token" element={<VerifyBooking />} />
           <Route path="/rentals" element={<BrowseRentals />} />
           <Route path="/rentals/business/:id" element={<RentalDetail />} />
           <Route path="/rentals/product/:id" element={<ProductDetail />} />
