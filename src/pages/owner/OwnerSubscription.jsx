@@ -1,19 +1,41 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { Badge, ErrorNote, Loading, PageHeader } from '../../components/ui';
+import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 
-const PLAN_INFO = {
-  monthly: { name: 'Monthly', price: '$29', period: 'per month', limitLabel: 'Up to 5 businesses' },
-  yearly: { name: 'Yearly', price: '$290', period: 'per year', limitLabel: 'Unlimited businesses', save: 'Save 2 months' },
+// Plan information for Business and Marketplace tiers across monthly & yearly billing cycles
+export const PLAN_TIER_CONFIG = {
+  business: {
+    id: 'business',
+    title: 'Business Management',
+    tag: 'Included',
+    tagTone: 'slate',
+    desc: 'Run your rental operations privately — perfect for individual shop owners.',
+    monthly: { price: '$29', period: 'per month' },
+    yearly: { price: '$290', period: 'per year', save: 'Save 2 months' },
+    limitLabel: { monthly: 'Up to 5 businesses', yearly: 'Unlimited businesses' },
+  },
+  marketplace: {
+    id: 'marketplace',
+    title: 'Marketplace Exposure',
+    tag: 'Recommended',
+    tagTone: 'green',
+    highlight: true,
+    desc: 'Everything in Business Management, plus publish your business & products to public customers.',
+    monthly: { price: '$49', period: 'per month' },
+    yearly: { price: '$490', period: 'per year', save: 'Save 2 months' },
+    limitLabel: { monthly: 'Up to 5 businesses', yearly: 'Unlimited businesses' },
+  },
 };
 
-// Left column: quota-style features (show a value). Right column: capabilities (checkmark).
-const quota = (plan) => [
-  { label: 'Rental businesses', value: PLAN_INFO[plan].limitLabel },
+const quota = (billing) => [
+  { label: 'Rental businesses', value: billing === 'yearly' ? 'Unlimited' : 'Up to 5 businesses' },
   { label: 'Bookings & reservations', value: 'Unlimited' },
   { label: 'Analytics & reports', value: 'Included' },
 ];
+
 const CAPABILITIES = [
   'Customer management',
   'Booking approvals & scheduling',
@@ -28,23 +50,21 @@ const INCLUDED = [
   { title: 'Bookings & reservations', desc: 'Accept, approve, and track every booking' },
   { title: 'Analytics & reports', desc: 'Revenue, top products, and monthly trends' },
   { title: 'Customer management', desc: 'See every renter and their history' },
-  { title: 'Payment methods', desc: 'Card, GCash, and PayPal at checkout' },
+  { title: 'Payment methods', desc: 'PayPal and online subscriptions' },
   { title: 'Priority support', desc: 'Faster help whenever you need it' },
 ];
 
-// The two Rentivo business plans (separate from billing period above).
 const BUSINESS_FEATURES = [
-  'Dashboard',
+  'Dashboard & Analytics',
   'Booking & reservation management',
   'Inventory / asset management',
   'Customer management (CRM)',
   'Employee & role management',
   'Payments & invoicing',
   'Maintenance scheduling',
-  'Reports & analytics',
-  'Notifications',
-  'Business settings',
+  'Notifications & Business settings',
 ];
+
 const MARKETPLACE_FEATURES = [
   'Everything in Business Management',
   'Public business profile',
@@ -55,19 +75,46 @@ const MARKETPLACE_FEATURES = [
   'Direct customer inquiries',
 ];
 
+/**
+ * Resolves the PayPal Plan ID from environment variables based on plan tier and billing period.
+ */
+export function getPaypalPlanId(tier, billing) {
+  if (tier === 'business') {
+    if (billing === 'monthly') {
+      return (
+        import.meta.env.VITE_PAYPAL_BUSINESS_MONTHLY_PLAN_ID ||
+        import.meta.env.VITE_PAYPAL_PLAN_ID ||
+        ''
+      );
+    }
+    if (billing === 'yearly') {
+      return import.meta.env.VITE_PAYPAL_BUSINESS_YEARLY_PLAN_ID || '';
+    }
+  }
+  if (tier === 'marketplace') {
+    if (billing === 'monthly') {
+      return import.meta.env.VITE_PAYPAL_MARKETPLACE_MONTHLY_PLAN_ID || '';
+    }
+    if (billing === 'yearly') {
+      return import.meta.env.VITE_PAYPAL_MARKETPLACE_YEARLY_PLAN_ID || '';
+    }
+  }
+  return '';
+}
+
 export default function OwnerSubscription() {
   const [sub, setSub] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [billing, setBilling] = useState('monthly');
-  const [checkout, setCheckout] = useState(false);
+  const [checkoutTarget, setCheckoutTarget] = useState(null);
+  const [comingSoonTarget, setComingSoonTarget] = useState(null);
 
   useEffect(() => {
     api.subscription
       .get()
       .then((s) => {
         setSub(s);
-        // Default the billing toggle to the natural upgrade target.
         setBilling(s.effectivePlan === 'monthly' ? 'yearly' : 'monthly');
       })
       .catch((e) => setError(e.message));
@@ -88,28 +135,44 @@ export default function OwnerSubscription() {
     }
   };
 
+  const handleSelectPlan = (tier, selectedBilling = billing) => {
+    const planId = getPaypalPlanId(tier, selectedBilling);
+    if (!planId) {
+      setComingSoonTarget({ tier, billing: selectedBilling });
+    } else {
+      setCheckoutTarget({ tier, billing: selectedBilling });
+    }
+  };
+
   if (!sub) return <Loading />;
 
   const isPaid = sub.effectivePlan === 'monthly' || sub.effectivePlan === 'yearly';
   const statusLabel = sub.isTrialActive ? 'Trial' : isPaid ? 'Active' : 'Inactive';
   const statusTone = sub.isTrialActive ? 'amber' : isPaid ? 'green' : 'slate';
-  const currentName =
-    sub.effectivePlan === 'none' ? 'Free plan' : `${PLAN_INFO[sub.effectivePlan]?.name || sub.effectivePlan} plan`;
-  const info = PLAN_INFO[billing];
-  const onCurrent = sub.effectivePlan === billing;
+  const currentPlanName =
+    sub.effectivePlan === 'none'
+      ? 'Free plan'
+      : `${sub.effectivePlan === 'yearly' ? 'Yearly' : 'Monthly'} plan`;
+
   const limitLabel = sub.businessLimit > 100 ? 'Unlimited' : sub.businessLimit;
-  const usagePct = sub.businessLimit > 100 ? 12 : Math.min(100, Math.round((sub.businessesUsed / sub.businessLimit) * 100));
+  const usagePct =
+    sub.businessLimit > 100 ? 12 : Math.min(100, Math.round((sub.businessesUsed / sub.businessLimit) * 100));
+
+  const bizInfo = PLAN_TIER_CONFIG.business[billing];
+  const mktInfo = PLAN_TIER_CONFIG.marketplace[billing];
+  const onCurrentBilling = sub.effectivePlan === billing;
 
   return (
     <div>
       <PageHeader title="Billing & Subscription" subtitle="Manage your plan, usage, and payment method." />
       <ErrorNote>{error}</ErrorNote>
 
+      {/* Subscription Summary Box */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-5">
           <div className="flex items-center gap-2.5">
-            <h2 className="text-lg font-bold text-slate-900">{currentName}</h2>
+            <h2 className="text-lg font-bold text-slate-900">{currentPlanName}</h2>
             <Badge tone={statusTone}>{statusLabel}</Badge>
           </div>
           <div className="flex gap-2">
@@ -148,21 +211,15 @@ export default function OwnerSubscription() {
           )}
         </div>
 
-        {/* Upgrade pitch */}
+        {/* Plan Header & Billing Switcher */}
         <div className="px-6 py-6">
           <div className="mx-auto max-w-xl text-center">
-            <span className="inline-block rounded-full bg-brand px-3 py-1 text-xs font-semibold text-white">
-              {info.name}
-            </span>
-            <h3 className="mt-3 text-xl font-bold text-slate-900">
-              {onCurrent ? `You're on the ${info.name} plan` : `Upgrade to ${info.name}`}
-            </h3>
+            <h3 className="text-xl font-bold text-slate-900">Choose your subscription plan</h3>
             <p className="mt-2 text-sm text-slate-500">
-              Your plan includes a fixed amount of free usage. Unlock more businesses, collaboration, and
-              priority support.
+              Select between Business Management or Marketplace Exposure to unlock more features, businesses, and public reach.
             </p>
 
-            {/* Billing toggle */}
+            {/* Global Billing Toggle */}
             <div className="mt-5 inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
               {['monthly', 'yearly'].map((k) => (
                 <button
@@ -170,21 +227,16 @@ export default function OwnerSubscription() {
                   type="button"
                   onClick={() => setBilling(k)}
                   className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
-                    billing === k ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                    billing === k ? 'bg-white text-slate-900 shadow-sm font-semibold' : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  {k}
+                  {k} {k === 'yearly' && <span className="ml-1 text-xs text-emerald-600 font-semibold">(Save 2 mos)</span>}
                 </button>
               ))}
             </div>
-            <p className="mt-3">
-              <span className="text-3xl font-bold text-slate-900">{info.price}</span>
-              <span className="text-sm text-slate-500"> {info.period}</span>
-              {info.save && <span className="ml-2 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent-dark">{info.save}</span>}
-            </p>
           </div>
 
-          {/* Feature grid */}
+          {/* Features comparison */}
           <div className="mx-auto mt-6 grid max-w-3xl gap-x-6 gap-y-1 md:grid-cols-2">
             {quota(billing).map((f) => (
               <div key={f.label} className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3 text-sm">
@@ -201,14 +253,15 @@ export default function OwnerSubscription() {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-4">
+        {/* Summary Footer */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-4 bg-slate-50/50">
           <div className="flex items-center gap-4">
             <a href="/#pricing" className="text-sm text-brand hover:underline">
               Learn more about Pricing and Plans
             </a>
             {sub.plan === 'none' && (
               <button
+                type="button"
                 onClick={() => run(api.subscription.startTrial)}
                 disabled={busy}
                 className="text-sm font-semibold text-accent-dark hover:underline disabled:opacity-60"
@@ -219,65 +272,87 @@ export default function OwnerSubscription() {
           </div>
           <button
             type="button"
-            disabled={busy || onCurrent}
-            onClick={() => setCheckout(true)}
+            disabled={busy || onCurrentBilling}
+            onClick={() => handleSelectPlan('business', billing)}
             className="rounded-lg bg-accent px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {onCurrent ? 'Current plan' : `Upgrade to ${info.name}`}
+            {onCurrentBilling ? 'Current Billing Cycle' : `Upgrade to ${billing === 'yearly' ? 'Yearly' : 'Monthly'}`}
           </button>
         </div>
       </div>
 
-      {/* Business plans (marketplace exposure) */}
+      {/* Business Plan Cards with Aligned Action Buttons */}
       <div className="mt-8">
-        <h2 className="text-lg font-bold text-slate-900">Choose your exposure</h2>
+        <h2 className="text-lg font-bold text-slate-900">Select Plan Tier & Exposure</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Every business gets full internal management. Upgrade a business to Marketplace to also
-          list it publicly to customers.
+          Choose the plan tier that fits your growth. Buttons are aligned for easy comparison.
         </p>
       </div>
 
-      <div className="mt-4 grid gap-5 md:grid-cols-2">
+      <div className="mt-4 grid gap-6 md:grid-cols-2 items-stretch">
         <PlanCard
-          title="Business Management"
-          tag="Included"
-          tagTone="slate"
-          desc="Run your rental operations privately — never shown in the public marketplace."
+          title={PLAN_TIER_CONFIG.business.title}
+          tag={PLAN_TIER_CONFIG.business.tag}
+          tagTone={PLAN_TIER_CONFIG.business.tagTone}
+          desc={PLAN_TIER_CONFIG.business.desc}
+          price={bizInfo.price}
+          period={bizInfo.period}
+          save={bizInfo.save}
           features={BUSINESS_FEATURES}
+          isCurrent={sub.effectivePlan === billing}
+          onSelect={() => handleSelectPlan('business', billing)}
+          actionLabel={`Choose Business ${billing === 'yearly' ? 'Yearly' : 'Monthly'}`}
         />
+
         <PlanCard
-          title="Marketplace"
-          tag="Upgrade"
-          tagTone="green"
-          highlight
-          desc="Everything in Business Management, plus publish your business and products to customers."
+          title={PLAN_TIER_CONFIG.marketplace.title}
+          tag={PLAN_TIER_CONFIG.marketplace.tag}
+          tagTone={PLAN_TIER_CONFIG.marketplace.tagTone}
+          highlight={PLAN_TIER_CONFIG.marketplace.highlight}
+          desc={PLAN_TIER_CONFIG.marketplace.desc}
+          price={mktInfo.price}
+          period={mktInfo.period}
+          save={mktInfo.save}
           features={MARKETPLACE_FEATURES}
+          isCurrent={false}
+          onSelect={() => handleSelectPlan('marketplace', billing)}
+          actionLabel={`Choose Marketplace ${billing === 'yearly' ? 'Yearly' : 'Monthly'}`}
         />
       </div>
 
-      {/* Per-business marketplace listing now lives on the My Businesses page. */}
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-6">
-        <p className="text-sm text-slate-500">
+      {/* Per-business marketplace listing note */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-sm text-slate-600 max-w-2xl">
           Choose which of your businesses appear on the public Rentivo marketplace from the
-          My Businesses page. Switching to private keeps all your data — it just hides the business
-          from customers.
+          <span className="font-semibold text-slate-800"> My Businesses</span> page. Switching to private keeps all your data — it just hides the business from public search.
         </p>
         <Link
           to="/owner/businesses"
-          className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-dark"
+          className="shrink-0 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-dark"
         >
           Manage marketplace listing
         </Link>
       </div>
 
-      {checkout && (
+      {/* Modals */}
+      {comingSoonTarget && (
+        <ComingSoonModal
+          target={comingSoonTarget}
+          onClose={() => setComingSoonTarget(null)}
+        />
+      )}
+
+      {checkoutTarget && (
         <CheckoutModal
-          info={info}
-          busy={busy}
-          onClose={() => setCheckout(false)}
-          onConfirm={async () => {
-            const ok = await run(() => api.subscription.choosePlan(billing));
-            if (ok) setCheckout(false);
+          initialTarget={checkoutTarget}
+          onClose={() => setCheckoutTarget(null)}
+          onSuccess={(nextSub) => {
+            setSub(nextSub);
+            setCheckoutTarget(null);
+          }}
+          onComingSoon={(target) => {
+            setCheckoutTarget(null);
+            setComingSoonTarget(target);
           }}
         />
       )}
@@ -285,29 +360,81 @@ export default function OwnerSubscription() {
   );
 }
 
-function PlanCard({ title, tag, tagTone, desc, features, highlight }) {
+/**
+ * Reusable PlanCard component with flex layout for bottom button alignment
+ */
+function PlanCard({
+  title,
+  tag,
+  tagTone,
+  desc,
+  price,
+  period,
+  save,
+  features,
+  highlight,
+  onSelect,
+  isCurrent,
+  actionLabel,
+}) {
   return (
-    <div className={`rounded-2xl border bg-white p-6 ${highlight ? 'border-accent shadow-sm' : 'border-slate-200'}`}>
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-        <Badge tone={tagTone}>{tag}</Badge>
+    <div
+      className={`flex flex-col justify-between h-full rounded-2xl border bg-white p-6 transition-all ${
+        highlight ? 'border-accent shadow-md ring-1 ring-accent/20' : 'border-slate-200 shadow-sm'
+      }`}
+    >
+      <div>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+          <Badge tone={tagTone}>{tag}</Badge>
+        </div>
+        <p className="mt-1 text-sm text-slate-500">{desc}</p>
+        {price && (
+          <p className="mt-4">
+            <span className="text-3xl font-extrabold text-slate-900">{price}</span>
+            <span className="text-sm font-medium text-slate-500"> {period}</span>
+            {save && (
+              <span className="ml-2.5 inline-block rounded-full bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                {save}
+              </span>
+            )}
+          </p>
+        )}
+        <div className="my-4 border-t border-slate-100" />
+        <ul className="space-y-2.5">
+          {features.map((f) => (
+            <li key={f} className="flex items-center gap-2.5 text-sm text-slate-700">
+              <CheckDot />
+              <span>{f}</span>
+            </li>
+          ))}
+        </ul>
       </div>
-      <p className="mt-1 text-sm text-slate-500">{desc}</p>
-      <ul className="mt-4 space-y-2.5">
-        {features.map((f) => (
-          <li key={f} className="flex items-center gap-2.5 text-sm text-slate-700">
-            <CheckDot />
-            {f}
-          </li>
-        ))}
-      </ul>
+
+      {/* Aligned bottom action container */}
+      <div className="mt-6 pt-4 border-t border-slate-100">
+        <button
+          type="button"
+          disabled={isCurrent}
+          onClick={onSelect}
+          className={`w-full rounded-lg py-2.5 px-4 text-center text-sm font-semibold transition-colors ${
+            isCurrent
+              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+              : highlight
+              ? 'bg-accent text-white hover:bg-accent-dark'
+              : 'bg-brand text-white hover:bg-slate-800'
+          }`}
+        >
+          {isCurrent ? 'Current Plan' : actionLabel || 'Select Plan'}
+        </button>
+      </div>
     </div>
   );
 }
 
 function CheckDot() {
   return (
-    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent text-white">
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
       <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.5" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
       </svg>
@@ -315,32 +442,67 @@ function CheckDot() {
   );
 }
 
+/**
+ * Clean, user-friendly modal shown when online checkout for a plan is coming soon.
+ */
+function ComingSoonModal({ target, onClose }) {
+  if (!target) return null;
+  const tierName = target.tier === 'marketplace' ? 'Marketplace' : 'Business Management';
+  const billingName = target.billing === 'yearly' ? 'Yearly' : 'Monthly';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-fade-in" onClick={onClose}>
+      <div
+        className="w-full max-w-md overflow-hidden rounded-2xl bg-white p-6 shadow-2xl text-center"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 border border-amber-200 text-amber-500 mb-4">
+          <svg className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <Badge tone="amber">Coming Soon</Badge>
+        <h3 className="mt-3 text-xl font-bold text-slate-900">
+          {tierName} ({billingName}) Plan
+        </h3>
+        <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+          Online checkout for the <span className="font-semibold text-slate-800">{tierName} ({billingName})</span> plan is coming soon. Please check back shortly or contact support if you have questions.
+        </p>
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-dark"
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Checkout modal ─────────────────────────────────────── */
 
-const COUNTRIES = ['Philippines', 'United States', 'Singapore', 'Australia', 'United Kingdom', 'Japan', 'Canada'];
-const fmtCard = (v) => v.replace(/\D/g, '').slice(0, 19).replace(/(.{4})/g, '$1 ').trim();
-const fmtExp = (v) => {
-  const d = v.replace(/\D/g, '').slice(0, 4);
-  return d.length <= 2 ? d : `${d.slice(0, 2)}/${d.slice(2)}`;
-};
-
-function CheckoutModal({ info, busy, onClose, onConfirm }) {
-  const [card, setCard] = useState('');
-  const [exp, setExp] = useState('');
-  const [cvc, setCvc] = useState('');
-  const [name, setName] = useState('');
-  const [country, setCountry] = useState('Philippines');
-  const [address, setAddress] = useState('');
-  const [taxId, setTaxId] = useState('');
+function CheckoutModal({ initialTarget, onClose, onSuccess, onComingSoon }) {
+  const { refreshUser } = useAuth();
+  const [tier, setTier] = useState(initialTarget?.tier || 'business');
+  const [billing, setBilling] = useState(initialTarget?.billing || 'monthly');
   const [err, setErr] = useState('');
 
-  const submit = () => {
-    if (card.replace(/\D/g, '').length < 13) return setErr('Enter a valid card number.');
-    if (!/^\d{2}\/\d{2}$/.test(exp)) return setErr('Enter the expiry as MM/YY.');
-    if (!/^\d{3,4}$/.test(cvc)) return setErr('CVC is 3–4 digits.');
-    if (!name.trim()) return setErr('Enter the name on the card.');
-    setErr('');
-    onConfirm();
+  const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
+  const planId = getPaypalPlanId(tier, billing);
+
+  const planConfig = PLAN_TIER_CONFIG[tier];
+  const cycleConfig = planConfig[billing];
+
+  const handleSwitchOption = (newTier, newBilling) => {
+    setTier(newTier);
+    setBilling(newBilling);
+    const newPlanId = getPaypalPlanId(newTier, newBilling);
+    if (!newPlanId && onComingSoon) {
+      onComingSoon({ tier: newTier, billing: newBilling });
+    }
   };
 
   return (
@@ -371,9 +533,13 @@ function CheckoutModal({ info, busy, onClose, onConfirm }) {
         <div className="overflow-y-auto p-6">
           <div className="mb-4 flex items-start justify-between">
             <div>
-              <span className="inline-block rounded-full bg-brand px-2.5 py-0.5 text-xs font-semibold text-white">{info.name}</span>
-              <h2 className="mt-2 text-lg font-bold text-slate-900">Upgrade to {info.name}</h2>
-              <p className="text-sm text-slate-500">Unlock more businesses and priority support.</p>
+              <span className="inline-block rounded-full bg-brand px-2.5 py-0.5 text-xs font-semibold text-white">
+                {planConfig.title}
+              </span>
+              <h2 className="mt-2 text-lg font-bold text-slate-900">
+                Checkout — {planConfig.title} ({billing === 'yearly' ? 'Yearly' : 'Monthly'})
+              </h2>
+              <p className="text-sm text-slate-500">Unlock features, businesses, and priority support.</p>
             </div>
             <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100" aria-label="Close">
               <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -382,70 +548,97 @@ function CheckoutModal({ info, busy, onClose, onConfirm }) {
             </button>
           </div>
 
+          {/* Plan & Cycle Selectors in Modal */}
+          <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-1 border border-slate-200">
+            <button
+              type="button"
+              onClick={() => handleSwitchOption('business', billing)}
+              className={`rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                tier === 'business' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Business Plan
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSwitchOption('marketplace', billing)}
+              className={`rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                tier === 'marketplace' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Marketplace Plan
+            </button>
+          </div>
+
           <div className="mb-5 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-            <span className="text-sm font-medium text-slate-700">{info.name} plan</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-slate-800">
+                {planConfig.title}
+              </span>
+              {/* Billing Toggle inside order summary */}
+              <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => handleSwitchOption(tier, 'monthly')}
+                  className={`px-2 py-0.5 rounded ${billing === 'monthly' ? 'bg-slate-800 text-white font-medium' : 'text-slate-600'}`}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSwitchOption(tier, 'yearly')}
+                  className={`px-2 py-0.5 rounded ${billing === 'yearly' ? 'bg-slate-800 text-white font-medium' : 'text-slate-600'}`}
+                >
+                  Yearly
+                </button>
+              </div>
+            </div>
             <span className="text-sm font-bold text-slate-900">
-              {info.price} <span className="font-normal text-slate-400">{info.period}</span>
+              {cycleConfig.price} <span className="font-normal text-slate-400">{cycleConfig.period}</span>
             </span>
           </div>
 
           {err && <div className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-700">{err}</div>}
 
-          <div className="space-y-4">
-            <L label="Card number">
-              <input value={card} onChange={(e) => setCard(fmtCard(e.target.value))} inputMode="numeric" placeholder="1234 1234 1234 1234" className={inputCls} />
-            </L>
-            <div className="grid grid-cols-2 gap-4">
-              <L label="Expiration date">
-                <input value={exp} onChange={(e) => setExp(fmtExp(e.target.value))} inputMode="numeric" placeholder="MM / YY" className={inputCls} />
-              </L>
-              <L label="Security code">
-                <input value={cvc} onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" placeholder="CVC" className={inputCls} />
-              </L>
+          {/* PayPal Checkout Button */}
+          {clientId && planId ? (
+            <div className="mb-6 rounded-xl border border-slate-200 p-4 bg-slate-50/50">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Subscribe with PayPal ({planConfig.title} - {billing})
+              </p>
+              <PayPalScriptProvider options={{ 'client-id': clientId, intent: 'subscription', vault: true }}>
+                <PayPalButtons
+                  style={{ layout: 'vertical', color: 'blue', shape: 'rect' }}
+                  createSubscription={(data, actions) => {
+                    return actions.subscription.create({ plan_id: planId });
+                  }}
+                  onApprove={async (data) => {
+                    try {
+                      const nextSub = await api.subscription.activatePaypal(data.subscriptionID, billing);
+                      await refreshUser();
+                      if (onSuccess) onSuccess(nextSub);
+                    } catch (e) {
+                      setErr(e.message);
+                    }
+                  }}
+                  onError={() => {
+                    setErr('PayPal checkout failed. Please try again.');
+                  }}
+                />
+              </PayPalScriptProvider>
             </div>
-            <L label="Full name">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Dela Cruz" className={inputCls} />
-            </L>
-            <L label="Country or region">
-              <select value={country} onChange={(e) => setCountry(e.target.value)} className={inputCls}>
-                {COUNTRIES.map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
-            </L>
-            <L label="Address">
-              <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, city, ZIP" className={inputCls} />
-            </L>
-            <L label="Tax ID (optional)">
-              <input value={taxId} onChange={(e) => setTaxId(e.target.value)} placeholder="123456789012" className={inputCls} />
-            </L>
-          </div>
-
-          <p className="mt-4 text-xs text-slate-400">
-            This is a secure demo checkout — no real charge is made and card details are never stored.
-          </p>
-
-          <button
-            onClick={submit}
-            disabled={busy}
-            className="mt-4 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-dark disabled:opacity-60"
-          >
-            {busy ? 'Processing…' : `Upgrade to ${info.name}`}
-          </button>
+          ) : (
+            <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/60 p-4 text-center">
+              <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">
+                Coming Soon
+              </p>
+              <p className="mt-1 text-xs text-amber-600">
+                Online checkout for the {planConfig.title} ({billing}) plan is coming soon.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
-  );
-}
-
-const inputCls =
-  'w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20';
-
-function L({ label, children }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
-      {children}
-    </label>
   );
 }

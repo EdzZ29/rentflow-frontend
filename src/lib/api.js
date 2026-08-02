@@ -242,5 +242,10 @@ export const api = {
     get: () => request('/owner/subscription'),
     startTrial: () => request('/owner/subscription/trial', { method: 'POST' }),
     choosePlan: (plan) => request('/owner/subscription', { method: 'POST', body: { plan } }),
+    activatePaypal: (subscriptionId, plan = 'monthly') =>
+      request('/owner/subscription/paypal-activate', {
+        method: 'POST',
+        body: { subscriptionId, plan },
+      }),
   },
 };
