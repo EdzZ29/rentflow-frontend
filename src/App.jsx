@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import ClerkProviderWithRouter from './components/ClerkProviderWithRouter';
 import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
 import { AuthProvider } from './context/AuthContext';
@@ -24,6 +25,7 @@ import ServicesPage from './pages/ServicesPage';
 import Settings from './pages/Settings';
 import VerifyBooking from './pages/VerifyBooking';
 import OAuthCallback from './pages/OAuthCallback';
+import SsoCallback from './pages/SsoCallback';
 import ResetPassword from './pages/ResetPassword';
 import BrowseRentals from './pages/rentals/BrowseRentals';
 import ProductDetail from './pages/rentals/ProductDetail';
@@ -43,15 +45,22 @@ import OwnerReservationsList from './pages/owner/OwnerReservationsList';
 import OwnerReviews from './pages/owner/OwnerReviews';
 import OwnerSubscription from './pages/owner/OwnerSubscription';
 import Signup from './pages/Signup';
+import SignInPage from './pages/SignInPage';
+import SignUpPage from './pages/SignUpPage';
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from '@vercel/analytics/react';
 
 function App() {
   return (
+    // BrowserRouter is outermost so ClerkProviderWithRouter can call
+    // useNavigate — Clerk drives its own multi-step flows through the router.
+    // The other providers don't use router hooks, so the order is otherwise
+    // unchanged.
+    <BrowserRouter>
+      <ClerkProviderWithRouter>
     <LanguageProvider>
     <AuthProvider>
       <RealtimeProvider>
-      <BrowserRouter>
         <ScrollToTop />
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -60,8 +69,15 @@ function App() {
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
+          {/* Clerk-hosted auth. Catch-alls: Clerk routes its own sub-steps
+              (second factor, SSO callback, reset password) under these paths. */}
+          <Route path="/sign-in/*" element={<SignInPage />} />
+          <Route path="/sign-up/*" element={<SignUpPage />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          {/* Where the social provider returns to; Clerk finishes the
+              handshake here, then forwards to /oauth/callback. */}
+          <Route path="/sso-callback" element={<SsoCallback />} />
           <Route path="/oauth/callback" element={<OAuthCallback />} />
           {/* Opened by scanning a booking QR code. */}
           <Route path="/verify/:token" element={<VerifyBooking />} />
@@ -131,10 +147,11 @@ function App() {
         </Routes>
         <SpeedInsights />
         <Analytics />
-      </BrowserRouter>
       </RealtimeProvider>
     </AuthProvider>
     </LanguageProvider>
+      </ClerkProviderWithRouter>
+    </BrowserRouter>
   );
 }
 

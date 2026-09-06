@@ -1,9 +1,11 @@
+import { useSignIn } from '@clerk/clerk-react';
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout';
 import OAuthButtons from '../components/OAuthButtons';
 import PasswordInput from '../components/PasswordInput';
 import { homePathForRole, useAuth } from '../context/AuthContext';
+import { clerkErrorMessage, isAlreadySignedIn } from '../lib/clerkErrors';
 
 // Friendly copy for the ?error=… codes the OAuth callback can redirect with.
 const OAUTH_ERRORS = {
@@ -17,7 +19,10 @@ const OAUTH_ERRORS = {
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  // Clerk checks the credentials; completeClerkSession then trades the
+  // resulting Clerk session for the Rentivo one the dashboards run on.
+  const { isLoaded, signIn, setActive } = useSignIn();
+  const { completeClerkSession } = useAuth();
   const [params] = useSearchParams();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState(OAUTH_ERRORS[params.get('error')] || '');
@@ -26,15 +31,44 @@ export default function Login() {
   const onChange = (e) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
+  const finish = async () => {
+    const user = await completeClerkSession();
+    navigate(homePathForRole(user.role));
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (!isLoaded) return;
     setError('');
     setLoading(true);
     try {
-      const user = await login(form);
-      navigate(homePathForRole(user.role));
-    } catch {
-      setError('Invalid email or password.');
+      const result = await signIn.create({
+        identifier: form.email.trim(),
+        password: form.password,
+      });
+
+      if (result.status === 'complete') {
+        await setActive({ session: result.createdSessionId });
+        await finish();
+        return;
+      }
+
+      // Anything else means Clerk wants another factor (e.g. the user turned on
+      // TOTP). Rather than rebuild every step here, hand off to Clerk's own
+      // sign-in page, which already handles the full ladder.
+      navigate('/sign-in');
+    } catch (err) {
+      // Already signed in with Clerk — e.g. navigated Back onto /login. There's
+      // nothing to authenticate, so just pick the session up.
+      if (isAlreadySignedIn(err)) {
+        try {
+          await finish();
+          return;
+        } catch {
+          /* fall through to the message below */
+        }
+      }
+      setError(clerkErrorMessage(err, 'Invalid email or password.'));
     } finally {
       setLoading(false);
     }
@@ -87,7 +121,7 @@ export default function Login() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !isLoaded}
             className="w-full rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-dark disabled:opacity-60"
           >
             {loading ? 'Logging in…' : 'Log in'}
@@ -100,7 +134,7 @@ export default function Login() {
           <span className="h-px flex-1 bg-slate-200" />
         </div>
 
-        <OAuthButtons label="Sign in" />
+        <OAuthButtons label="Sign in" onError={setError} />
 
         <p className="mt-6 text-center text-sm text-slate-600">
           Don't have an account?{' '}

@@ -1,18 +1,33 @@
 import { useState } from 'react';
 import { assetUrl } from '../lib/api';
+import { MAX_UPLOAD_LABEL, validateImageFile } from '../lib/uploads';
 
 // File picker with a live preview. The preview (and everywhere the image is
 // shown) uses object-cover so images are cropped to fit consistently.
 export default function ImagePicker({ currentUrl, onFile, label = 'Photo', aspect = 'h-24 w-36' }) {
   const [preview, setPreview] = useState(null);
+  const [error, setError] = useState('');
   const shown = preview || (currentUrl ? assetUrl(currentUrl) : null);
 
   const handle = (e) => {
     const f = e.target.files?.[0];
-    if (f) {
-      setPreview(URL.createObjectURL(f));
-      onFile(f);
+    // Reset the input either way, so re-picking the same file after an
+    // oversized attempt still fires onChange.
+    e.target.value = '';
+    if (!f) return;
+
+    const message = validateImageFile(f);
+    if (message) {
+      setError(message);
+      // Drop any previously staged file — nothing gets uploaded.
+      onFile(null);
+      setPreview(null);
+      return;
     }
+
+    setError('');
+    setPreview(URL.createObjectURL(f));
+    onFile(f);
   };
 
   return (
@@ -35,7 +50,13 @@ export default function ImagePicker({ currentUrl, onFile, label = 'Photo', aspec
           <input type="file" accept="image/*" onChange={handle} className="hidden" />
         </label>
       </div>
-      <p className="mt-1 text-xs text-slate-400">Cropped to fit — JPG, PNG or WebP.</p>
+      {error ? (
+        <p className="mt-1 text-xs font-medium text-red-600">{error}</p>
+      ) : (
+        <p className="mt-1 text-xs text-slate-400">
+          Cropped to fit — JPG, PNG or WebP, up to {MAX_UPLOAD_LABEL}.
+        </p>
+      )}
     </div>
   );
 }

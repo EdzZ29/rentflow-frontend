@@ -1,3 +1,4 @@
+import { useSignUp } from '@clerk/clerk-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout';
@@ -6,6 +7,12 @@ import PasswordInput, { passwordIsValid } from '../components/PasswordInput';
 import PhoneInput, { phoneIsValid, fullPhone } from '../components/PhoneInput';
 import { homePathForRole, useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import {
+  clerkErrorMessage,
+  clerkFieldErrors,
+  isAlreadySignedIn,
+  isAlreadyTaken,
+} from '../lib/clerkErrors';
 import { CATEGORIES } from '../lib/categories';
 import { COUNTRIES, provinces, cities, barangays, zipFor } from '../lib/philippines';
 
@@ -97,17 +104,32 @@ const roles = [
   },
 ];
 
-const OWNER_STEPS = ['Account', 'Owner', 'Business', 'Plan', 'Payment'];
+// 'Verify' is last because the account is created at the end of the flow, the
+// same point the old backend-only signup called register().
+const OWNER_STEPS = ['Account', 'Owner', 'Business', 'Plan', 'Payment', 'Verify'];
+
+// Clerk wants a first/last name; the form asks for one full name.
+function splitName(fullName) {
+  const parts = fullName.trim().split(/\s+/);
+  return {
+    firstName: parts[0] || undefined,
+    lastName: parts.length > 1 ? parts.slice(1).join(' ') : undefined,
+  };
+}
 
 export default function Signup() {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  // Clerk creates the credential + verifies the email; completeClerkSession
+  // then creates the matching Rentivo user with the chosen role.
+  const { isLoaded, signUp, setActive } = useSignUp();
+  const { completeClerkSession } = useAuth();
 
   const [role, setRole] = useState(null);
-  const [step, setStep] = useState('role'); // role | account | owner | business | plan | payment
+  const [step, setStep] = useState('role'); // role | account | owner | business | plan | payment | verify
   const [loading, setLoading] = useState(false);
   const [banner, setBanner] = useState(null); // {title, detail, hint, action?}
   const [fieldErrors, setFieldErrors] = useState({});
+  const [code, setCode] = useState('');
 
   const [form, setForm] = useState({
     // Account
@@ -235,8 +257,15 @@ export default function Signup() {
     else setStep(nextStep);
   };
 
-  // -- Friendly error mapping --
+  // -- Friendly error mapping (Rentivo API errors; Clerk's are handled inline) --
   const toBanner = (err) => {
+    if (err.status === 503) {
+      return {
+        title: 'Sign-up is temporarily unavailable',
+        detail: 'The server cannot reach Clerk right now.',
+        hint: 'Please try again shortly. If it persists, contact support.',
+      };
+    }
     if (err.status === 409) {
       return {
         title: 'That email is already registered',
@@ -267,16 +296,100 @@ export default function Signup() {
   };
 
   // -- Submit --
-  const submit = async () => {
+  //
+  // Two phases, because Clerk requires the email to be verified by code before
+  // the account exists:
+  //   startSignUp()      creates the Clerk sign-up and emails a 6-digit code
+  //   verifyAndFinish()  confirms the code, then provisions the Rentivo user
+  const startSignUp = async () => {
+    if (!isLoaded) return;
     setLoading(true);
     setBanner(null);
     try {
-      const user = await register({
-        fullName: clean(form.fullName),
-        email: form.email.trim(),
+      await signUp.create({
+        emailAddress: form.email.trim(),
         password: form.password,
-        role: role === 'owner' ? 'owner' : 'customer',
+        ...splitName(clean(form.fullName)),
       });
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      setStep('verify');
+    } catch (err) {
+      if (isAlreadySignedIn(err)) {
+        // A Clerk session is already active (abandoned signup, or another tab).
+        // The credential step is done, so go straight to provisioning.
+        await provision();
+        return;
+      }
+      const fields = clerkFieldErrors(err);
+      if (Object.keys(fields).length) setFieldErrors(fields);
+      setBanner(
+        isAlreadyTaken(err)
+          ? {
+              title: 'That email is already registered',
+              detail: 'An account with this email already exists.',
+              hint: 'Try logging in instead, or sign up with a different email.',
+              action: { to: '/login', label: 'Go to login' },
+            }
+          : {
+              title: 'We could not create your account',
+              detail: clerkErrorMessage(err),
+              hint: 'Fix the highlighted fields and try again.',
+            },
+      );
+      setStep('account');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyAndFinish = async () => {
+    if (!isLoaded) return;
+    setLoading(true);
+    setBanner(null);
+    try {
+      const result = await signUp.attemptEmailAddressVerification({
+        code: code.trim(),
+      });
+      if (result.status !== 'complete') {
+        setBanner({
+          title: 'Verification incomplete',
+          detail: 'That code was accepted but the sign-up is not finished.',
+          hint: 'Please try again, or request a new code.',
+        });
+        return;
+      }
+      await setActive({ session: result.createdSessionId });
+      await provision();
+    } catch (err) {
+      setFieldErrors(clerkFieldErrors(err));
+      setBanner({
+        title: 'That code did not work',
+        detail: clerkErrorMessage(err, 'The code is incorrect or has expired.'),
+        hint: 'Check the code in your inbox, or send yourself a new one.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resendCode = async () => {
+    setBanner(null);
+    try {
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      setBanner({ title: 'A new code is on its way', detail: `Sent to ${form.email}.` });
+    } catch (err) {
+      setBanner({ title: 'Could not resend the code', detail: clerkErrorMessage(err) });
+    }
+  };
+
+  // Create/attach the Rentivo account for the now-verified Clerk identity, then
+  // run the owner-only extras that used to follow register().
+  const provision = async () => {
+    setLoading(true);
+    try {
+      const user = await completeClerkSession(
+        role === 'owner' ? 'owner' : 'customer',
+      );
 
       if (role === 'owner') {
         // Upgrade to the chosen paid plan (trial is the default from register).
@@ -306,9 +419,11 @@ export default function Signup() {
       }
       navigate(homePathForRole(user.role));
     } catch (err) {
-      const b = toBanner(err);
-      setBanner(b);
-      if (err.status === 409 || err.status === 400) setStep('account');
+      // The Clerk identity exists and is verified at this point — only the
+      // Rentivo side failed, so send them back to the code step rather than to
+      // 'account', where re-creating the Clerk user would just conflict.
+      setBanner(toBanner(err));
+      setStep('verify');
     } finally {
       setLoading(false);
     }
@@ -334,7 +449,7 @@ export default function Signup() {
               loading={loading}
               onBack={() => { setStep('role'); setBanner(null); setFieldErrors({}); }}
               onNext={() =>
-                guard(validateAccount, 'owner', role === 'owner' ? undefined : submit)
+                guard(validateAccount, 'owner', role === 'owner' ? undefined : startSignUp)
               }
             />
           )}
@@ -371,7 +486,7 @@ export default function Signup() {
               loading={loading}
               onNext={() => {
                 setBanner(null);
-                if (form.plan === 'trial') submit();
+                if (form.plan === 'trial') startSignUp();
                 else setStep('payment');
               }}
             />
@@ -385,9 +500,26 @@ export default function Signup() {
               errors={fieldErrors}
               loading={loading}
               onBack={() => setStep('plan')}
-              onPay={() => guard(validatePayment, null, submit)}
+              onPay={() => guard(validatePayment, null, startSignUp)}
             />
           )}
+
+          {step === 'verify' && (
+            <VerifyStep
+              email={form.email}
+              code={code}
+              setCode={setCode}
+              error={fieldErrors.code}
+              loading={loading}
+              onResend={resendCode}
+              onSubmit={verifyAndFinish}
+            />
+          )}
+
+          {/* Clerk's bot check mounts here. It stays invisible unless a
+              challenge is actually needed, but the node must exist in the DOM
+              before signUp.create() runs or Clerk rejects the attempt. */}
+          <div id="clerk-captcha" />
 
           <p className="mt-6 text-center text-sm text-slate-600">
             Already have an account?{' '}
@@ -440,8 +572,14 @@ function RoleStep({ onPick }) {
 }
 
 function Stepper({ step, plan }) {
-  const steps = plan === 'trial' ? OWNER_STEPS.slice(0, 4) : OWNER_STEPS;
-  const current = { account: 0, owner: 1, business: 2, plan: 3, payment: 4 }[step] ?? 0;
+  // A trial skips Payment, which shifts every later index — so derive the
+  // position from the visible list instead of a fixed lookup.
+  const steps =
+    plan === 'trial'
+      ? [...OWNER_STEPS.slice(0, 4), 'Verify']
+      : OWNER_STEPS;
+  const label = { account: 'Account', owner: 'Owner', business: 'Business', plan: 'Plan', payment: 'Payment', verify: 'Verify' }[step];
+  const current = Math.max(0, steps.indexOf(label));
   return (
     <ol className="mb-6 flex items-center gap-2">
       {steps.map((label, i) => (
@@ -826,6 +964,67 @@ function PaymentStep({ form, onChange, set, errors, loading, onBack, onPay }) {
         loading={loading}
       />
     </div>
+  );
+}
+
+function VerifyStep({ email, code, setCode, error, loading, onResend, onSubmit }) {
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
+      <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+        Confirm your email
+      </h1>
+      <p className="mt-1 text-slate-500">
+        Last step — we sent a 6-digit code to <strong>{email}</strong>.
+      </p>
+
+      <Instructions>
+        Enter the code to activate your account. It expires after a few minutes.
+        Check your spam folder if it hasn&apos;t arrived.
+      </Instructions>
+
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium text-slate-700">
+          Verification code
+        </span>
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          autoFocus
+          placeholder="123456"
+          aria-invalid={!!error}
+          className={`w-full rounded-lg border px-4 py-2.5 text-center text-lg tracking-[0.4em] text-slate-900 outline-none transition-colors focus:ring-2 ${
+            error
+              ? 'border-red-400 focus:border-red-400 focus:ring-red-100'
+              : 'border-slate-300 focus:border-accent focus:ring-accent/20'
+          }`}
+        />
+        {error && <span className="mt-1 block text-xs text-red-600">{error}</span>}
+      </label>
+
+      <button
+        type="submit"
+        disabled={loading || code.length < 6}
+        className="mt-6 w-full rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-dark disabled:opacity-60"
+      >
+        {loading ? 'Verifying…' : 'Verify & finish'}
+      </button>
+
+      <button
+        type="button"
+        onClick={onResend}
+        disabled={loading}
+        className="mt-3 w-full text-center text-sm font-medium text-accent hover:underline disabled:opacity-60"
+      >
+        Send me a new code
+      </button>
+    </form>
   );
 }
 

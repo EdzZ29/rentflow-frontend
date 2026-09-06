@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import BusinessPackages from '../../components/BusinessPackages';
+import ConfirmModal from '../../components/ConfirmModal';
 import Modal from '../../components/Modal';
+import PhotoField from '../../components/PhotoField';
 import { Badge, ErrorNote, Loading, PageHeader } from '../../components/ui';
 import { useOwnerPlan } from '../../context/OwnerPlanContext';
 import { api, assetUrl } from '../../lib/api';
@@ -31,6 +33,7 @@ export default function OwnerProducts() {
   const [creating, setCreating] = useState(false); // create-product modal open
   const [editing, setEditing] = useState(null); // product being edited
   const [viewing, setViewing] = useState(null); // product whose details are open
+  const [pendingDelete, setPendingDelete] = useState(null); // awaiting confirmation
   const { isActive } = useOwnerPlan();
 
   const load = () =>
@@ -56,14 +59,10 @@ export default function OwnerProducts() {
     }
   };
 
-  const remove = async (p) => {
-    if (!window.confirm(`Delete "${p.name}"?`)) return;
-    try {
-      await api.products.remove(p.id);
-      await load();
-    } catch (e) {
-      setError(e.message);
-    }
+  // Confirmed through a modal — errors surface inside it.
+  const removeConfirmed = async () => {
+    await api.products.remove(pendingDelete.id);
+    await load();
   };
 
   if (!products && !error) return <Loading />;
@@ -175,7 +174,7 @@ export default function OwnerProducts() {
                         >
                           {isMarketplace && p.isPublished ? 'Make private' : 'Make public'}
                         </RowBtn>
-                        <RowBtn onClick={() => remove(p)} disabled={!isActive} tone="danger" title={!isActive ? 'Subscribe to delete' : undefined}>Delete</RowBtn>
+                        <RowBtn onClick={() => setPendingDelete(p)} disabled={!isActive} tone="danger" title={!isActive ? 'Subscribe to delete' : undefined}>Delete</RowBtn>
                       </div>
                     </td>
                   </tr>
@@ -188,6 +187,17 @@ export default function OwnerProducts() {
 
       {/* Packages — owner-defined bundles for this business */}
       <BusinessPackages businessId={bid} isActive={isActive} isMarketplace={isMarketplace} />
+
+      {pendingDelete && (
+        <ConfirmModal
+          title="Delete item"
+          message={`Delete "${pendingDelete.name}"?`}
+          detail="This can't be undone. Its reviews and booking history go with it."
+          confirmLabel="Delete item"
+          onConfirm={removeConfirmed}
+          onClose={() => setPendingDelete(null)}
+        />
+      )}
 
       {creating && (
         <CreateProductModal
@@ -434,11 +444,7 @@ function CreateProductModal({ businessId, onClose, onSaved }) {
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent focus:ring-2 focus:ring-accent/20" />
           <span className="mt-1 block text-xs text-slate-400">Leave blank to use the standard policy.</span>
         </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium text-slate-700">Photo</span>
-          <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-accent/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-accent-dark" />
-        </label>
+        <PhotoField label="Photo" onFile={setFile} />
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
           <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-60">
@@ -525,11 +531,7 @@ function EditProductModal({ product, onClose, onSaved }) {
             <option value="unavailable">Unavailable</option>
           </select>
         </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium text-slate-700">Replace photo</span>
-          <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-accent/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-accent-dark" />
-        </label>
+        <PhotoField label="Replace photo" onFile={setFile} />
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
           <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-60">

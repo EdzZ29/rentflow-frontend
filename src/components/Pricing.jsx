@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 const plans = [
   {
     name: 'Free Trial',
-    price: '$0',
+    price: '₱ 0',
     period: 'for 7 days',
     description: 'Explore everything Rentivo offers no credit card required.',
     cta: 'Start free trial',
@@ -18,7 +18,7 @@ const plans = [
   },
   {
     name: 'Monthly',
-    price: '20$',
+    price: '₱ 499',
     period: 'per month',
     description: 'Everything a growing rental business needs, billed monthly.',
     cta: 'Choose Monthly',
@@ -34,7 +34,7 @@ const plans = [
   },
   {
     name: 'Yearly',
-    price: '$230',
+    price: '₱ 4,999',
     period: 'per year',
     badge: 'Save 2 months',
     description: 'Best value for established businesses two months free.',
@@ -109,7 +109,7 @@ export default function Pricing() {
             Simple, flexible plans
           </h2>
           <p className="mt-4 text-lg text-slate-600">
-            Start with a 7-day free trial. Upgrade any time — cancel whenever you
+            Start with a 7-day free trial. Upgrade any time cancel whenever you
             like.
           </p>
         </div>

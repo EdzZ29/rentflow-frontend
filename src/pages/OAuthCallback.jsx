@@ -1,23 +1,39 @@
-import { useEffect } from 'react';
+import { useAuth as useClerkAuth } from '@clerk/clerk-react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout';
 import { homePathForRole, useAuth } from '../context/AuthContext';
+import { takePendingRole } from '../lib/pendingRole';
 
-// Landing route the backend redirects to after a successful social login. The
-// session cookie is already set; AuthProvider fetches /me on load, then we
-// route the user to their role's dashboard.
+// Landing route after a successful social login. Clerk has already established
+// its own session by this point (see SsoCallback); the remaining job is to
+// trade it for a Rentivo session and send the user to their dashboard.
 export default function OAuthCallback() {
-  const { user, loading } = useAuth();
+  const { isLoaded, isSignedIn } = useClerkAuth();
+  const { completeClerkSession } = useAuth();
   const navigate = useNavigate();
+  // StrictMode double-invokes effects in dev; the exchange must not run twice.
+  const started = useRef(false);
 
   useEffect(() => {
-    if (loading) return;
-    if (user) {
-      navigate(homePathForRole(user.role), { replace: true });
-    } else {
+    if (!isLoaded || started.current) return;
+    started.current = true;
+
+    if (!isSignedIn) {
       navigate('/login?error=oauth_failed', { replace: true });
+      return;
     }
-  }, [user, loading, navigate]);
+
+    (async () => {
+      try {
+        // Only applies if this social login just created the account.
+        const user = await completeClerkSession(takePendingRole());
+        navigate(homePathForRole(user.role), { replace: true });
+      } catch {
+        navigate('/login?error=oauth_failed', { replace: true });
+      }
+    })();
+  }, [isLoaded, isSignedIn, completeClerkSession, navigate]);
 
   return (
     <AuthLayout>

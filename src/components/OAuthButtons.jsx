@@ -1,10 +1,7 @@
-import { oauthUrl } from '../lib/api';
-
-// Full-page redirect to start the provider flow. The backend handles the
-// callback, sets our session cookie, and redirects to /oauth/callback.
-const start = (provider) => {
-  window.location.href = oauthUrl(provider);
-};
+import { useSignIn } from '@clerk/clerk-react';
+import { useState } from 'react';
+import { clerkErrorMessage } from '../lib/clerkErrors';
+import { setPendingRole } from '../lib/pendingRole';
 
 // Official Google "G" mark (4-color). Per Google's branding guidelines, the
 // button is white with the colored G and "Sign in with Google" text.
@@ -28,25 +25,55 @@ function FacebookIcon() {
   );
 }
 
-export default function OAuthButtons({ label = 'Sign in' }) {
+// Social login through Clerk.
+//
+// Clerk brokers the provider handshake (the Google credentials live in the
+// Clerk dashboard, not here), sends the browser to /sso-callback to finish it,
+// and then on to /oauth/callback where we swap the Clerk session for ours.
+// `signIn.authenticateWithRedirect` covers sign-up too — Clerk transfers the
+// attempt to a sign-up automatically when there's no account yet.
+export default function OAuthButtons({ label = 'Sign in', role, onError }) {
+  const { isLoaded, signIn } = useSignIn();
+  const [busy, setBusy] = useState(null);
+
+  const start = async (strategy) => {
+    if (!isLoaded || busy) return;
+    setBusy(strategy);
+    try {
+      // Survives the redirect; only used if the account is brand new.
+      setPendingRole(role);
+      await signIn.authenticateWithRedirect({
+        strategy,
+        redirectUrl: '/sso-callback',
+        redirectUrlComplete: '/oauth/callback',
+      });
+      // On success the browser navigates away, so nothing after this runs.
+    } catch (err) {
+      setBusy(null);
+      onError?.(clerkErrorMessage(err, "We couldn't start that sign-in."));
+    }
+  };
+
   return (
     <div className="space-y-3">
       <button
         type="button"
-        onClick={() => start('google')}
-        className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+        onClick={() => start('oauth_google')}
+        disabled={!isLoaded || !!busy}
+        className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
       >
         <GoogleIcon />
-        {label} with Google
+        {busy === 'oauth_google' ? 'Redirecting…' : `${label} with Google`}
       </button>
       <button
         type="button"
-        onClick={() => start('facebook')}
-        className="flex w-full items-center justify-center gap-3 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors"
+        onClick={() => start('oauth_facebook')}
+        disabled={!isLoaded || !!busy}
+        className="flex w-full items-center justify-center gap-3 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-60"
         style={{ backgroundColor: '#1877F2' }}
       >
         <FacebookIcon />
-        {label} with Facebook
+        {busy === 'oauth_facebook' ? 'Redirecting…' : `${label} with Facebook`}
       </button>
     </div>
   );

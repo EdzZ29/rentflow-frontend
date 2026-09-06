@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ConfirmModal from './ConfirmModal';
 import Modal from './Modal';
 import { Badge, ErrorNote } from './ui';
 import { api } from '../lib/api';
@@ -31,6 +32,7 @@ export default function BusinessPackages({ businessId, isActive, isMarketplace }
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null); // awaiting confirmation
 
   const load = () =>
     api.packages.listByBusiness(businessId).then(setPackages).catch((e) => setError(e.message));
@@ -49,14 +51,10 @@ export default function BusinessPackages({ businessId, isActive, isMarketplace }
     }
   };
 
-  const remove = async (p) => {
-    if (!window.confirm(`Delete package "${p.name}"?`)) return;
-    try {
-      await api.packages.remove(p.id);
-      await load();
-    } catch (e) {
-      setError(e.message);
-    }
+  // Confirmed through a modal — errors surface inside it.
+  const removeConfirmed = async () => {
+    await api.packages.remove(pendingDelete.id);
+    await load();
   };
 
   return (
@@ -141,7 +139,7 @@ export default function BusinessPackages({ businessId, isActive, isMarketplace }
                             {p.isPublished ? 'Unpublish' : 'Publish'}
                           </RowBtn>
                         )}
-                        <RowBtn onClick={() => remove(p)} disabled={!isActive} tone="danger" title={!isActive ? 'Subscribe to delete' : undefined}>Delete</RowBtn>
+                        <RowBtn onClick={() => setPendingDelete(p)} disabled={!isActive} tone="danger" title={!isActive ? 'Subscribe to delete' : undefined}>Delete</RowBtn>
                       </div>
                     </td>
                   </tr>
@@ -151,6 +149,17 @@ export default function BusinessPackages({ businessId, isActive, isMarketplace }
           )}
         </div>
       </div>
+
+      {pendingDelete && (
+        <ConfirmModal
+          title="Delete package"
+          message={`Delete package "${pendingDelete.name}"?`}
+          detail="This can't be undone."
+          confirmLabel="Delete package"
+          onConfirm={removeConfirmed}
+          onClose={() => setPendingDelete(null)}
+        />
+      )}
 
       {creating && (
         <PackageModal

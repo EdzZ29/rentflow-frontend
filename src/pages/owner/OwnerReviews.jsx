@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import ConfirmModal from '../../components/ConfirmModal';
 import Modal from '../../components/Modal';
 import { StarRating } from '../../components/StarRating';
 import { Badge, ErrorNote, Loading, PageHeader } from '../../components/ui';
@@ -230,6 +231,7 @@ function ReplyModal({ review, onClose, onSaved }) {
   const [text, setText] = useState(review.ownerReply || '');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -246,16 +248,10 @@ function ReplyModal({ review, onClose, onSaved }) {
     }
   };
 
-  const removeReply = async () => {
-    setSaving(true);
-    try {
-      await api.ownerReviews.deleteReply(review.id);
-      await onSaved();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+  // Confirmed through a modal — errors surface inside it.
+  const removeReplyConfirmed = async () => {
+    await api.ownerReviews.deleteReply(review.id);
+    await onSaved();
   };
 
   return (
@@ -279,7 +275,7 @@ function ReplyModal({ review, onClose, onSaved }) {
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="flex items-center gap-3">
           {review.ownerReply && (
-            <button type="button" onClick={removeReply} disabled={saving} className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60">
+            <button type="button" onClick={() => setConfirmRemove(true)} disabled={saving} className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60">
               Remove
             </button>
           )}
@@ -289,6 +285,17 @@ function ReplyModal({ review, onClose, onSaved }) {
           </button>
         </div>
       </form>
+
+      {confirmRemove && (
+        <ConfirmModal
+          title="Remove reply"
+          message="Remove your public reply to this review?"
+          detail="The review itself stays; only your reply is removed."
+          confirmLabel="Remove reply"
+          onConfirm={removeReplyConfirmed}
+          onClose={() => setConfirmRemove(false)}
+        />
+      )}
     </Modal>
   );
 }

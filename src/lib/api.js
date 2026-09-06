@@ -28,6 +28,27 @@ function qs(params) {
   return s ? `?${s}` : '';
 }
 
+// Turn a failed response into an Error carrying the API's own message, so the
+// UI can show the real reason (e.g. "that image is too large") rather than a
+// generic failure. Shared by JSON requests and multipart uploads.
+async function toError(res, fallback) {
+  const text = await res.text();
+  let message = fallback ?? `Request failed (${res.status})`;
+  try {
+    const json = JSON.parse(text);
+    if (json.message) {
+      message = Array.isArray(json.message)
+        ? json.message.join(', ')
+        : json.message;
+    }
+  } catch {
+    /* keep the fallback message */
+  }
+  const err = new Error(message);
+  err.status = res.status;
+  return err;
+}
+
 async function request(path, { method = 'GET', body } = {}) {
   const res = await fetch(`${API_URL}${path}`, {
     method,
@@ -36,45 +57,39 @@ async function request(path, { method = 'GET', body } = {}) {
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    let message = `Request failed (${res.status})`;
-    try {
-      const json = JSON.parse(text);
-      if (json.message) {
-        message = Array.isArray(json.message)
-          ? json.message.join(', ')
-          : json.message;
-      }
-    } catch {
-      /* keep default message */
-    }
-    const err = new Error(message);
-    err.status = res.status;
-    throw err;
-  }
+  if (!res.ok) throw await toError(res);
   return res.status === 204 ? null : res.json();
+}
+
+// POST a single image as multipart/form-data.
+async function upload(path, file, fallback) {
+  const fd = new FormData();
+  fd.append('image', file);
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    body: fd,
+  });
+  if (!res.ok) throw await toError(res, fallback);
+  return res.json();
 }
 
 export const api = {
   // ── Auth (cookie-based) ───────────────────────────────
   register: (data) => request('/auth/register', { method: 'POST', body: data }),
   login: (data) => request('/auth/login', { method: 'POST', body: data }),
+  // Trade a verified Clerk session for a Rentivo one. The API re-verifies the
+  // token with Clerk and reads the email from Clerk's own records, then sets
+  // the same httpOnly cookie as every other login. `role` only applies when
+  // the account doesn't exist yet — the server ignores it otherwise.
+  clerkSession: (token, role) =>
+    request('/auth/clerk', { method: 'POST', body: { token, role } }),
   logout: () => request('/auth/logout', { method: 'POST' }),
   me: () => request('/auth/me'),
   // Self-service profile (name / email / password) for the signed-in user.
   updateProfile: (data) => request('/auth/me', { method: 'PATCH', body: data }),
-  uploadAvatar: async (file) => {
-    const fd = new FormData();
-    fd.append('image', file);
-    const res = await fetch(`${API_URL}/auth/me/avatar`, {
-      method: 'POST',
-      credentials: 'include',
-      body: fd,
-    });
-    if (!res.ok) throw new Error('Avatar upload failed');
-    return res.json();
-  },
+  uploadAvatar: (file) =>
+    upload('/auth/me/avatar', file, 'Avatar upload failed'),
   forgotPassword: (email) =>
     request('/auth/forgot-password', { method: 'POST', body: { email } }),
   resetPassword: (token, password) =>
@@ -85,6 +100,9 @@ export const api = {
     list: () => request('/users'),
     create: (data) => request('/users', { method: 'POST', body: data }),
     update: (id, data) => request(`/users/${id}`, { method: 'PATCH', body: data }),
+    // Admin override of an owner's subscription plan (upgrade or downgrade).
+    setPlan: (id, plan) =>
+      request(`/users/${id}/plan`, { method: 'PATCH', body: { plan } }),
     remove: (id) => request(`/users/${id}`, { method: 'DELETE' }),
   },
 
@@ -100,17 +118,8 @@ export const api = {
     create: (data) => request('/businesses', { method: 'POST', body: data }),
     update: (id, data) => request(`/businesses/${id}`, { method: 'PATCH', body: data }),
     remove: (id) => request(`/businesses/${id}`, { method: 'DELETE' }),
-    uploadImage: async (id, file) => {
-      const fd = new FormData();
-      fd.append('image', file);
-      const res = await fetch(`${API_URL}/businesses/${id}/image`, {
-        method: 'POST',
-        credentials: 'include',
-        body: fd,
-      });
-      if (!res.ok) throw new Error('Image upload failed');
-      return res.json();
-    },
+    uploadImage: (id, file) =>
+      upload(`/businesses/${id}/image`, file, 'Image upload failed'),
   },
 
   // ── Public rentals storefront ─────────────────────────
@@ -148,17 +157,8 @@ export const api = {
     create: (data) => request('/products', { method: 'POST', body: data }),
     update: (id, data) => request(`/products/${id}`, { method: 'PATCH', body: data }),
     remove: (id) => request(`/products/${id}`, { method: 'DELETE' }),
-    uploadImage: async (id, file) => {
-      const fd = new FormData();
-      fd.append('image', file);
-      const res = await fetch(`${API_URL}/products/${id}/image`, {
-        method: 'POST',
-        credentials: 'include',
-        body: fd,
-      });
-      if (!res.ok) throw new Error('Image upload failed');
-      return res.json();
-    },
+    uploadImage: (id, file) =>
+      upload(`/products/${id}/image`, file, 'Image upload failed'),
   },
 
   // ── Packages (owner-defined bundles of offerings) ────
@@ -182,16 +182,12 @@ export const api = {
   // Booking requirement documents + handover QR validation.
   bookingDocs: {
     // kind: 'validId' | 'licenseId'
-    upload: async (reservationId, kind, file) => {
-      const fd = new FormData();
-      fd.append('image', file);
-      const res = await fetch(
-        `${API_URL}/reservations/${reservationId}/documents?kind=${kind}`,
-        { method: 'POST', credentials: 'include', body: fd },
-      );
-      if (!res.ok) throw new Error('Document upload failed');
-      return res.json();
-    },
+    upload: (reservationId, kind, file) =>
+      upload(
+        `/reservations/${reservationId}/documents?kind=${kind}`,
+        file,
+        'Document upload failed',
+      ),
   },
   // Public read of the booking behind a QR code, plus the owner's scan action.
   // Whether a scan releases the unit or closes out its return is decided by

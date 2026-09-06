@@ -1,14 +1,19 @@
+import { useUser } from '@clerk/clerk-react';
 import { useState } from 'react';
 import ImagePicker from '../components/ImagePicker';
 import { Card, ErrorNote, PageHeader } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { api } from '../lib/api';
+import { clerkErrorMessage } from '../lib/clerkErrors';
 import { LANGUAGES } from '../lib/languages';
 
 // Account settings shared by every dashboard role (customer / owner / admin).
 export default function Settings() {
   const { user, setUser } = useAuth();
+  // Profile details (name, email, avatar) stay in our users table; only the
+  // password is Clerk's.
+  const { user: clerkUser } = useUser();
   const { language, setLanguage } = useLanguage();
 
   const [form, setForm] = useState({
@@ -58,6 +63,9 @@ export default function Settings() {
     }
   };
 
+  // The password lives in Clerk, not in our users table, so this has to go
+  // through Clerk — writing to the API here would update a hash that nothing
+  // authenticates against and report a success the user can't actually use.
   const savePassword = async (e) => {
     e.preventDefault();
     setPwError('');
@@ -66,13 +74,22 @@ export default function Settings() {
       setPwError('Passwords do not match.');
       return;
     }
+    if (!clerkUser) {
+      setPwError('Your session has expired. Please log in again.');
+      return;
+    }
     setSavingPw(true);
     try {
-      setUser(await api.updateProfile({ password: pw.password }));
+      await clerkUser.updatePassword({
+        newPassword: pw.password,
+        // A password change is how you lock out someone who already got in, so
+        // it should end their sessions too — not just add a new credential.
+        signOutOfOtherSessions: true,
+      });
       setPw({ password: '', confirm: '' });
       setPwOk('Password updated.');
     } catch (err) {
-      setPwError(err.message);
+      setPwError(clerkErrorMessage(err, 'We could not update your password.'));
     } finally {
       setSavingPw(false);
     }

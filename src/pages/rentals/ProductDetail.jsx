@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { LockIcon, MapPinIcon } from '../../components/icons';
 import { categoryIcon } from '../../lib/categories';
 import { VALID_ID_TYPES } from '../../lib/idTypes';
+import { MAX_UPLOAD_LABEL, validateImageFile } from '../../lib/uploads';
 import { api, assetUrl } from '../../lib/api';
 import { cityOf } from '../../lib/location';
 import { formatPrice, rentalDays } from '../../lib/currency';
@@ -634,7 +635,22 @@ function Stepper({ steps, activeIndex }) {
 
 // Photo picker for a requirement document, with a local preview.
 function DocUpload({ label, hint, file, onFile }) {
+  const [error, setError] = useState('');
   const preview = file ? URL.createObjectURL(file) : null;
+
+  const pick = (e) => {
+    const f = e.target.files?.[0] ?? null;
+    e.target.value = ''; // allow re-picking the same file after a rejection
+    if (!f) return;
+    const message = validateImageFile(f);
+    if (message) {
+      setError(message);
+      onFile(null);
+      return;
+    }
+    setError('');
+    onFile(f);
+  };
   return (
     <div className="rounded-lg border border-slate-200 p-3">
       <div className="flex items-center gap-3">
@@ -651,14 +667,20 @@ function DocUpload({ label, hint, file, onFile }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-slate-700">{label}</p>
-          <p className="truncate text-xs text-slate-500">{file ? file.name : hint}</p>
+          {error ? (
+            <p className="text-xs font-medium text-red-600">{error}</p>
+          ) : (
+            <p className="truncate text-xs text-slate-500">
+              {file ? file.name : `${hint} · up to ${MAX_UPLOAD_LABEL}`}
+            </p>
+          )}
           <label className="mt-1.5 inline-block cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
             {file ? 'Change photo' : 'Upload photo'}
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
               className="hidden"
-              onChange={(e) => onFile(e.target.files?.[0] || null)}
+              onChange={pick}
             />
           </label>
         </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import ConfirmModal from '../../components/ConfirmModal';
 import ImagePicker from '../../components/ImagePicker';
 import Modal from '../../components/Modal';
 import { Badge, Card, ErrorNote, Loading, PageHeader } from '../../components/ui';
@@ -28,6 +29,7 @@ export default function OwnerBusinesses() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(null);
   const [planBusy, setPlanBusy] = useState(null); // id being toggled
+  const [pendingDelete, setPendingDelete] = useState(null); // awaiting confirmation
   const { isActive } = useOwnerPlan();
 
   const load = () =>
@@ -87,14 +89,10 @@ export default function OwnerBusinesses() {
     }
   };
 
-  const remove = async (b) => {
-    if (!window.confirm(`Delete "${b.name}"?`)) return;
-    try {
-      await api.businesses.remove(b.id);
-      await load();
-    } catch (e) {
-      setError(e.message);
-    }
+  // Confirmed through a modal — errors surface inside it.
+  const removeConfirmed = async () => {
+    await api.businesses.remove(pendingDelete.id);
+    await load();
   };
 
   if (!businesses || !sub) return <Loading />;
@@ -234,7 +232,7 @@ export default function OwnerBusinesses() {
                     <button onClick={() => toggleStatus(b)} disabled={!isActive} title={!isActive ? 'Subscribe to manage' : undefined} className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
                       {b.status === 'active' ? 'Pause' : 'Activate'}
                     </button>
-                    <button onClick={() => remove(b)} disabled={!isActive} title={!isActive ? 'Subscribe to delete' : undefined} className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Delete</button>
+                    <button onClick={() => setPendingDelete(b)} disabled={!isActive} title={!isActive ? 'Subscribe to delete' : undefined} className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Delete</button>
                   </div>
                 </div>
               </div>
@@ -242,6 +240,17 @@ export default function OwnerBusinesses() {
           ))}
         </div>
       </div>
+
+      {pendingDelete && (
+        <ConfirmModal
+          title="Delete business"
+          message={`Delete "${pendingDelete.name}"?`}
+          detail="This can't be undone. Its items, packages and booking history go with it."
+          confirmLabel="Delete business"
+          onConfirm={removeConfirmed}
+          onClose={() => setPendingDelete(null)}
+        />
+      )}
 
       {editing && (
         <EditBusinessModal
