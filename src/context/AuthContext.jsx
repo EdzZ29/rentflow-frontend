@@ -20,6 +20,16 @@ export function AuthProvider({ children }) {
   const clerk = useClerk();
   const { isLoaded: clerkLoaded, isSignedIn: clerkSignedIn } = useClerkAuth();
 
+  // Email + password against our own API. Rentivo accounts — the seeded admin,
+  // owners created in the dashboard, anyone registered through /auth/register —
+  // live in our database and have no Clerk identity, so Clerk can't sign them
+  // in. This is the path that works for them.
+  const login = useCallback(async (email, password) => {
+    const res = await api.login({ email: email.trim(), password });
+    setUser(res.user);
+    return res.user;
+  }, []);
+
   // Hand the current Clerk session to the API and adopt the Rentivo user it
   // returns. `role` is only honoured for accounts that don't exist yet.
   const completeClerkSession = useCallback(
@@ -37,15 +47,17 @@ export function AuthProvider({ children }) {
   // /me answers directly. If it has expired but Clerk still considers us signed
   // in, silently re-exchange rather than bouncing a signed-in user to /login.
   useEffect(() => {
-    // Wait for Clerk, otherwise the fallback below can't run.
-    if (!clerkLoaded) return;
-
     let cancelled = false;
     (async () => {
       let me = null;
       try {
         me = await api.me();
       } catch {
+        // No valid Rentivo cookie. Clerk might still vouch for this browser,
+        // but we can't ask until it has loaded — bail out and let the effect
+        // re-run when it does. Checking the cookie first means a password login
+        // restores even if Clerk is slow, blocked, or misconfigured.
+        if (!clerkLoaded) return;
         if (clerkSignedIn) {
           try {
             me = (await api.clerkSession(await clerk.session.getToken())).user;
@@ -90,7 +102,15 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, completeClerkSession, logout, setUser, refreshUser }}
+      value={{
+        user,
+        loading,
+        login,
+        completeClerkSession,
+        logout,
+        setUser,
+        refreshUser,
+      }}
     >
       {children}
     </AuthContext.Provider>

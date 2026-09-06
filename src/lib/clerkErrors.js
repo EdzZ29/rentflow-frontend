@@ -41,3 +41,15 @@ export function isAlreadyTaken(err) {
 export function isAlreadySignedIn(err) {
   return (err?.errors ?? []).some((e) => e.code === 'session_exists');
 }
+
+// Clerk doesn't recognise this identifier at all ("Identifier is invalid").
+// On its own that's not worth surfacing: the account may simply live in the
+// Rentivo database rather than in Clerk, so callers that already tried our own
+// API collapse this into their generic "invalid email or password" message.
+export function isUnknownIdentifier(err) {
+  return (err?.errors ?? []).some(
+    (e) =>
+      e.code === 'form_identifier_not_found' ||
+      e?.meta?.paramName === 'identifier',
+  );
+}

@@ -5,7 +5,11 @@ import AuthLayout from '../components/AuthLayout';
 import OAuthButtons from '../components/OAuthButtons';
 import PasswordInput from '../components/PasswordInput';
 import { homePathForRole, useAuth } from '../context/AuthContext';
-import { clerkErrorMessage, isAlreadySignedIn } from '../lib/clerkErrors';
+import {
+  clerkErrorMessage,
+  isAlreadySignedIn,
+  isUnknownIdentifier,
+} from '../lib/clerkErrors';
 
 // Friendly copy for the ?error=… codes the OAuth callback can redirect with.
 const OAUTH_ERRORS = {
@@ -19,10 +23,11 @@ const OAUTH_ERRORS = {
 
 export default function Login() {
   const navigate = useNavigate();
-  // Clerk checks the credentials; completeClerkSession then trades the
-  // resulting Clerk session for the Rentivo one the dashboards run on.
+  // Two credential stores, in order: our own API (where Rentivo accounts live),
+  // then Clerk for accounts created through Clerk's flows or social sign-in —
+  // completeClerkSession trades that session for the Rentivo one.
   const { isLoaded, signIn, setActive } = useSignIn();
-  const { completeClerkSession } = useAuth();
+  const { login, completeClerkSession } = useAuth();
   const [params] = useSearchParams();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState(OAUTH_ERRORS[params.get('error')] || '');
@@ -38,9 +43,32 @@ export default function Login() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    if (!isLoaded) return;
     setError('');
     setLoading(true);
+
+    // Rentivo accounts live in our own database and have no Clerk identity, so
+    // Clerk would reject them outright ("Identifier is invalid"). Try the API's
+    // password login first; it's the one that works for the seeded admin,
+    // dashboard-created owners, and anyone registered via /auth/register.
+    try {
+      const user = await login(form.email, form.password);
+      navigate(homePathForRole(user.role));
+      return;
+    } catch (apiErr) {
+      // 401 just means our database doesn't know this pair — the account may
+      // exist only in Clerk, so fall through and let Clerk try. Anything else
+      // (API down, network, 5xx) is worth showing as-is.
+      if (apiErr?.status !== 401 || !isLoaded) {
+        setError(
+          apiErr?.status === 401
+            ? 'Invalid email or password.'
+            : apiErr?.message || 'Could not reach the server. Please try again.',
+        );
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const result = await signIn.create({
         identifier: form.email.trim(),
@@ -68,7 +96,13 @@ export default function Login() {
           /* fall through to the message below */
         }
       }
-      setError(clerkErrorMessage(err, 'Invalid email or password.'));
+      // Our API already rejected these credentials, so Clerk not knowing the
+      // address adds nothing — say the one thing that's actually true.
+      setError(
+        isUnknownIdentifier(err)
+          ? 'Invalid email or password.'
+          : clerkErrorMessage(err, 'Invalid email or password.'),
+      );
     } finally {
       setLoading(false);
     }
@@ -119,9 +153,12 @@ export default function Login() {
             />
           </label>
 
+          {/* Only `loading` gates the button: the API login works without Clerk,
+              so waiting on Clerk here would lock out password sign-in whenever
+              Clerk is slow, blocked, or misconfigured. */}
           <button
             type="submit"
-            disabled={loading || !isLoaded}
+            disabled={loading}
             className="w-full rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-dark disabled:opacity-60"
           >
             {loading ? 'Logging in…' : 'Log in'}
