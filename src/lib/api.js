@@ -82,8 +82,11 @@ export const api = {
   // token with Clerk and reads the email from Clerk's own records, then sets
   // the same httpOnly cookie as every other login. `role` only applies when
   // the account doesn't exist yet — the server ignores it otherwise.
-  clerkSession: (token, role) =>
-    request('/auth/clerk', { method: 'POST', body: { token, role } }),
+  clerkSession: (token, role, acceptedTerms) =>
+    request('/auth/clerk', {
+      method: 'POST',
+      body: { token, role, acceptedTerms },
+    }),
   logout: () => request('/auth/logout', { method: 'POST' }),
   me: () => request('/auth/me'),
   // Self-service profile (name / email / password) for the signed-in user.
@@ -120,6 +123,12 @@ export const api = {
     remove: (id) => request(`/businesses/${id}`, { method: 'DELETE' }),
     uploadImage: (id, file) =>
       upload(`/businesses/${id}/image`, file, 'Image upload failed'),
+  },
+
+  // ── Legal documents (public) ──────────────────────────
+  legal: {
+    list: () => request('/legal'),
+    get: (slug) => request(`/legal/${slug}`),
   },
 
   // ── Public rentals storefront ─────────────────────────

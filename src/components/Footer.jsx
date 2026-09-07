@@ -28,7 +28,16 @@ const columns = [
       { label: "Help Center" },
       { label: "Documentation" },
       { label: "Status" },
-      { label: "Privacy" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { label: "Privacy Policy", to: "/legal/privacy-policy" },
+      { label: "Terms and Conditions", to: "/legal/terms-and-conditions" },
+      { label: "Cookie Policy", to: "/legal/cookie-policy" },
+      { label: "Refund Policy", to: "/legal/refund-policy" },
+      { label: "Form Consent", to: "/legal/form-consent" },
     ],
   },
 ];
@@ -37,7 +46,7 @@ export default function Footer() {
   return (
     <footer id="contact" className="border-t border-slate-200 bg-slate-50">
       <div className="mx-auto max-w-7xl px-6 py-16">
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-6">
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center gap-2.5">
@@ -98,16 +107,20 @@ export default function Footer() {
           <p className="text-sm text-slate-500">
             © {new Date().getFullYear()} rentivo. All rights reserved.
           </p>
+          {/* These were placeholder anchors; they now point at the real pages. */}
           <div className="flex items-center gap-5 text-slate-500">
-            <a href="#" className="text-sm hover:text-accent">
+            <Link to="/legal/terms-and-conditions" className="text-sm hover:text-accent">
               Terms
-            </a>
-            <a href="#" className="text-sm hover:text-accent">
+            </Link>
+            <Link to="/legal/privacy-policy" className="text-sm hover:text-accent">
               Privacy
-            </a>
-            <a href="#" className="text-sm hover:text-accent">
+            </Link>
+            <Link to="/legal/cookie-policy" className="text-sm hover:text-accent">
               Cookies
-            </a>
+            </Link>
+            <Link to="/legal/refund-policy" className="text-sm hover:text-accent">
+              Refunds
+            </Link>
           </div>
         </div>
       </div>

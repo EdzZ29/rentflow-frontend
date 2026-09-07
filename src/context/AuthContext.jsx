@@ -33,10 +33,12 @@ export function AuthProvider({ children }) {
   // Hand the current Clerk session to the API and adopt the Rentivo user it
   // returns. `role` is only honoured for accounts that don't exist yet.
   const completeClerkSession = useCallback(
-    async (role) => {
+    async (role, acceptedTerms) => {
       const token = await clerk.session?.getToken();
       if (!token) throw new Error('No active Clerk session.');
-      const res = await api.clerkSession(token, role);
+      // acceptedTerms is recorded against the account only when it is being
+      // created for the first time.
+      const res = await api.clerkSession(token, role, acceptedTerms);
       setUser(res.user);
       return res.user;
     },

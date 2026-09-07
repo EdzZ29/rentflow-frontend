@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ClerkProviderWithRouter from './components/ClerkProviderWithRouter';
 import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
@@ -17,6 +17,7 @@ import CustomerOverview from './pages/customer/CustomerOverview';
 import CustomerReviews from './pages/customer/CustomerReviews';
 import SupportView from './pages/support/SupportView';
 import AboutPage from './pages/AboutPage';
+import LegalPage from './pages/LegalPage';
 import ForgotPassword from './pages/ForgotPassword';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -65,6 +66,15 @@ function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/about" element={<AboutPage />} />
+          {/* Legal documents. Also reachable at their bare slugs so older
+              links and printed material keep working. */}
+          <Route path="/legal/:slug" element={<LegalPage />} />
+          <Route path="/legal" element={<Navigate to="/legal/privacy-policy" replace />} />
+          <Route path="/privacy-policy" element={<Navigate to="/legal/privacy-policy" replace />} />
+          <Route path="/terms-and-conditions" element={<Navigate to="/legal/terms-and-conditions" replace />} />
+          <Route path="/cookie-policy" element={<Navigate to="/legal/cookie-policy" replace />} />
+          <Route path="/refund-policy" element={<Navigate to="/legal/refund-policy" replace />} />
+          <Route path="/form-consent" element={<Navigate to="/legal/form-consent" replace />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/signup" element={<Signup />} />

@@ -136,6 +136,8 @@ export default function Signup() {
     fullName: '',
     email: '',
     password: '',
+    // Ticked on the account step; recorded server-side with the policy version.
+    acceptedTerms: false,
     // Owner information
     ownerPhoneCountry: 'PH',
     ownerPhone: '',
@@ -172,8 +174,11 @@ export default function Signup() {
       return next;
     });
   const onChange = (e) => {
-    set({ [e.target.name]: e.target.value });
-    if (fieldErrors[e.target.name]) clearErrors(e.target.name);
+    // Checkboxes carry their state in `checked`; `value` would be the string
+    // "on" and would make an unticked box read as truthy.
+    const { name, type, value, checked } = e.target;
+    set({ [name]: type === 'checkbox' ? checked : value });
+    if (fieldErrors[name]) clearErrors(name);
   };
 
   // -- Validation (returns { field: message }) --
@@ -389,6 +394,7 @@ export default function Signup() {
     try {
       const user = await completeClerkSession(
         role === 'owner' ? 'owner' : 'customer',
+        form.acceptedTerms === true,
       );
 
       if (role === 'owner') {
@@ -708,12 +714,41 @@ function AccountStep({ form, onChange, errors, isOwner, loading, onBack, onNext 
         </div>
       </div>
 
+      {/* Consent. The Data Privacy Act wants informed consent recorded, so the
+          box is unticked by default and the step cannot be completed without
+          it; the API stores the date and which policy revision was accepted. */}
+      <label className="mt-5 flex cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          name="acceptedTerms"
+          checked={!!form.acceptedTerms}
+          onChange={onChange}
+          className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-accent focus:ring-accent"
+        />
+        <span className="text-sm leading-6 text-slate-600">
+          I agree to Rentivo&apos;s{' '}
+          <Link to="/legal/terms-and-conditions" target="_blank" className="font-semibold text-accent hover:underline">
+            Terms and Conditions
+          </Link>
+          ,{' '}
+          <Link to="/legal/privacy-policy" target="_blank" className="font-semibold text-accent hover:underline">
+            Privacy Policy
+          </Link>{' '}
+          and{' '}
+          <Link to="/legal/form-consent" target="_blank" className="font-semibold text-accent hover:underline">
+            Form Consent
+          </Link>
+          .
+        </span>
+      </label>
+
       <StepButtons
         onBack={onBack}
         backLabel="Back"
         onNext={onNext}
         nextLabel={isOwner ? 'Continue' : 'Create account'}
         loading={loading}
+        nextDisabled={!form.acceptedTerms}
       />
     </div>
   );
@@ -1028,7 +1063,7 @@ function VerifyStep({ email, code, setCode, error, loading, onResend, onSubmit }
   );
 }
 
-function StepButtons({ onBack, backLabel, onNext, nextLabel, loading }) {
+function StepButtons({ onBack, backLabel, onNext, nextLabel, loading, nextDisabled }) {
   return (
     <div className="mt-6 flex items-center gap-3">
       <button
@@ -1042,7 +1077,7 @@ function StepButtons({ onBack, backLabel, onNext, nextLabel, loading }) {
       <button
         type="button"
         onClick={onNext}
-        disabled={loading}
+        disabled={loading || nextDisabled}
         className="flex-1 rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-dark disabled:opacity-60"
       >
         {nextLabel}
